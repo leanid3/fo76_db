@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FO76 DB — локальная база Fallout 76</title>
+<meta name="description" content="Каталог предметов Fallout 76 с историей обновлений, инвентарь всех персонажей, схемы, легендарные роллы, события и Минерва. Работает на вашем компьютере, игру не изменяет.">
+<meta property="og:title" content="FO76 DB — локальная база Fallout 76">
+<meta property="og:description" content="Каталог, инвентарь, схемы, роллы, события. Всё локально, без регистрации.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="https://leanid3.github.io/fo76_db/img/catalog.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root { color-scheme: dark; --bg:#0b100e; --panel:#121a16; --panel2:#17221d; --line:#25342d; --text:#d9e6df; --muted:#8aa197;
+  --accent:#4fd18b; --accent2:#f2b84b; --link:#7cc7ff; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, "Segoe UI", sans-serif; }
+a { color: var(--link); text-decoration: none; } a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent2); outline-offset: 2px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+.skip { position: absolute; left: -999px; } .skip:focus { left: 8px; top: 8px; background: var(--panel); padding: 6px 10px; z-index: 9; }
+header.top { border-bottom: 1px solid var(--line); background: rgba(11,16,14,.92); position: sticky; top: 0; backdrop-filter: blur(6px); z-index: 5; }
+header.top .wrap { display: flex; align-items: center; gap: 22px; min-height: 56px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--accent); letter-spacing: .5px; }
+.brand img { width: 28px; height: 28px; }
+header.top nav { display: flex; gap: 4px 18px; margin-left: auto; flex-wrap: wrap; }
+header.top nav a { color: var(--text); font-size: 15px; }
+.hero { padding: 64px 0 40px; text-align: center; background: radial-gradient(ellipse at 50% -10%, #17372a 0, transparent 60%); }
+.hero h1 { font-size: clamp(34px, 6vw, 56px); margin: 0 0 12px; color: var(--accent); letter-spacing: 1px; text-shadow: 0 0 18px rgba(79,209,139,.35); }
+.hero p.lead { font-size: clamp(17px, 2.4vw, 21px); max-width: 720px; margin: 0 auto 26px; color: var(--text); }
+.btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 11px 22px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); font-weight: 600; }
+.btn:hover { text-decoration: none; border-color: var(--accent); }
+.btn.primary { background: #1d3a2b; border-color: var(--accent); color: #eafff3; }
+.hint { color: var(--muted); font-size: 14px; margin-top: 14px; }
+.shot { margin: 38px auto 0; max-width: 980px; border: 1px solid var(--accent); border-radius: 14px; overflow: hidden; box-shadow: 0 0 40px rgba(79,209,139,.18); }
+.shot img { display: block; width: 100%; height: auto; }
+section { padding: 52px 0; border-top: 1px solid var(--line); }
+section h2 { margin: 0 0 8px; font-size: 28px; color: var(--accent); }
+section > .wrap > p.sub { margin: 0 0 28px; color: var(--muted); max-width: 720px; }
+.grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+.card h3 { margin: 0 0 6px; font-size: 17px; color: var(--accent2); }
+.card p { margin: 0; color: var(--text); font-size: 15px; }
+.shots { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+figure img { display: block; width: 100%; height: auto; }
+figcaption { padding: 10px 14px; color: var(--muted); font-size: 14px; }
+table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 15px; }
+th { color: var(--muted); font-weight: 600; background: var(--panel2); }
+tr:last-child td { border-bottom: 0; }
+code { background: #0a0f0d; border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font: 13.5px ui-monospace, monospace; color: #bfeed3; }
+pre { background: #0a0f0d; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 10px 0; }
+pre code { border: 0; padding: 0; }
+.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.steps li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px 14px 58px; position: relative; }
+.steps li::before { content: counter(s); position: absolute; left: 16px; top: 12px; width: 30px; height: 30px; border-radius: 50%; background: #1d3a2b; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-weight: 700; }
+.note { background: #2a2414; border: 1px solid var(--accent2); color: #f3dba3; border-radius: 10px; padding: 12px 16px; font-size: 15px; }
+footer { border-top: 1px solid var(--line); padding: 30px 0 46px; color: var(--muted); font-size: 14px; }
+footer .wrap > div { margin-bottom: 8px; }
+@media (max-width: 640px) { header.top nav { margin-left: 0; } .hero { padding-top: 40px; } th:nth-child(3), td:nth-child(3) { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">К содержимому</a>
+<header class="top"><div class="wrap">
+  <a class="brand" href="./"><img src="icon.svg" alt="" width="28" height="28">FO76 DB</a>
+  <nav aria-label="Разделы сайта">
+    <a href="#features">Возможности</a><a href="#screens">Скриншоты</a><a href="#download">Скачать</a><a href="#start">Начало работы</a><a href="docs/">Документация</a><a href="https://github.com/leanid3/fo76_db">GitHub</a>
+  </nav>
+</div></header>
+<main id="main">
+<div class="hero"><div class="wrap">
+  <h1>FO76 DB</h1>
+  <p class="lead">Локальная база Fallout 76: каталог предметов с историей обновлений, инвентарь всех персонажей, схемы, легендарные роллы, события и Минерва. Всё на вашем компьютере, игру утилита не меняет.</p>
+  <div class="btns">
+    <a class="btn primary" href="#download" id="hero-dl">Скачать</a>
+    <a class="btn" href="docs/manual/">Инструкция пользователя</a>
+  </div>
+  <p class="hint" id="ver">Windows 10/11 и Linux · бесплатно, открытый код (GNU AGPL v3)</p>
+  <div class="shot"><img src="img/catalog.png" alt="Каталог предметов FO76 DB: поиск, фильтры, колонки «Добавлено» и «Автотеги»" width="1360" height="820"></div>
+</div></div>
+
+<section id="features"><div class="wrap">
+  <h2>Что умеет</h2>
+  <p class="sub">Список предметов и названия EN/RU берутся из установленной игры, статы и история — из публичных выгрузок, инвентарь — из модов Invent-O-Matic.</p>
+  <div class="grid">
+    <div class="card"><h3>Каталог и история</h3><p>Все предметы игры: поиск по-русски и по-английски, фильтры, вес, цена, крафт и разбор. Колонка «добавлено в обновлении» по ~140 версиям с 2019 года.</p></div>
+    <div class="card"><h3>Как получить</h3><p>Откуда выпадает предмет: списки добычи, контейнеры, враги, места в мире, схема для крафта, подсказки из вики.</p></div>
+    <div class="card"><h3>Инвентарь</h3><p>«Где лежит?» по всем персонажам и тайнику, теги, свои названия, поиск по легендарным звёздам, история снимков и сравнение.</p></div>
+    <div class="card"><h3>Схемы и мулы</h3><p>Кто что изучил, массовые отметки, «Передать и продать»: какую схему изучить, кому передать, что продать.</p></div>
+    <div class="card"><h3>Легендарные роллы</h3><p>Список нужных роллов, оценка «год-ролл / частично / на скрип» и уведомление, когда нужный выпал.</p></div>
+    <div class="card"><h3>События и Минерва</h3><p>Сброс дня и недели, сезон, Daily Ops, чек-лист ежедневок, расписание Минервы и сколько её схем вы ещё не изучили.</p></div>
+    <div class="card"><h3>Вес</h3><p>Куда уходит вес инвентаря и тайника и что можно убрать, с учётом схем и «на скрип».</p></div>
+    <div class="card"><h3>Редактор IOM</h3><p>Правила Invent-O-Matic формой: проверка, список изменений перед записью, бэкап и откат. Единственное место, где утилита пишет в файлы игры, и только по вашему подтверждению.</p></div>
+    <div class="card"><h3>Телефон и офлайн</h3><p>Установка как приложение (PWA), доступ по токену из домашней сети, последние страницы доступны без связи.</p></div>
+    <div class="card"><h3>Приватность</h3><p>База лежит у вас в папке данных. Утилита не требует аккаунта и ничего не отправляет: только читает публичные источники и спрашивает GitHub о новой версии (отключается).</p></div>
+  </div>
+</div></section>
+
+<section id="screens"><div class="wrap">
+  <h2>Как выглядит</h2>
+  <p class="sub">Интерфейс в стиле Pip-Boy, есть янтарная тема и классический вид. Скриншоты — только общие данные игры, без личных.</p>
+  <div class="shots">
+    <figure><img src="img/item.png" alt="Карточка предмета: параметры, «Как получить», места и списки добычи" loading="lazy" width="1360" height="940"><figcaption>Карточка предмета: параметры, откуда выпадает, как крафтится.</figcaption></figure>
+    <figure><img src="img/updates.png" alt="Страница «Обновления»: что добавили в каждом патче" loading="lazy" width="1360" height="820"><figcaption>Что добавляли в каждом обновлении игры.</figcaption></figure>
+  </div>
+</div></section>
+
+<section id="download"><div class="wrap">
+  <h2>Скачать</h2>
+  <p class="sub" id="dl-sub">Последний релиз на GitHub. Выберите вариант под себя; подробности — в <a href="docs/packaging/">разделе «Сборка и установка»</a>.</p>
+  <table>
+    <thead><tr><th>Вариант</th><th>Для кого</th><th>Файл</th></tr></thead>
+    <tbody>
+      <tr><td><b>Windows, окно</b></td><td>Обычный пользователь: окно без браузера</td><td><a data-asset="fo76db-desktop-windows-x86_64.exe" href="https://github.com/leanid3/fo76_db/releases/latest/download/fo76db-desktop-windows-x86_64.exe">fo76db-desktop-windows-x86_64.exe</a></td></tr>
+      <tr><td><b>Linux, окно</b></td><td>Окно на Qt, ярлык в меню</td><td><a data-asset="fo76db-desktop-linux-x86_64.tar.gz" href="https://github.com/leanid3/fo76_db/releases/latest/download/fo76db-desktop-linux-x86_64.tar.gz">fo76db-desktop-linux-x86_64.tar.gz</a></td></tr>
+      <tr><td><b>Flatpak</b></td><td>Любой Linux, песочница</td><td><a data-asset="fo76db-linux-x86_64.flatpak" href="https://github.com/leanid3/fo76_db/releases/latest/download/fo76db-linux-x86_64.flatpak">fo76db-linux-x86_64.flatpak</a></td></tr>
+      <tr><td><b>Windows, браузер</b></td><td>Один exe: сервер и браузер</td><td><a data-asset="fo76db-windows-x86_64.exe" href="https://github.com/leanid3/fo76_db/releases/latest/download/fo76db-windows-x86_64.exe">fo76db-windows-x86_64.exe</a></td></tr>
+      <tr><td><b>Linux, браузер</b></td><td>Один файл, <code>chmod +x</code> и запуск</td><td><a data-asset="fo76db-linux-x86_64" href="https://github.com/leanid3/fo76_db/releases/latest/download/fo76db-linux-x86_64">fo76db-linux-x86_64</a></td></tr>
+      <tr><td><b>Docker</b></td><td>Сервер, NAS</td><td><code>docker pull ghcr.io/leanid3/fo76db:latest</code></td></tr>
+      <tr><td><b>Python</b></td><td>Есть Python 3.12+</td><td><a href="https://github.com/leanid3/fo76_db/releases/latest">wheel из релиза</a>: <code>pip install fo76db-*.whl</code></td></tr>
+    </tbody>
+  </table>
+  <p class="hint">Arch / CachyOS — сборка из <code>packaging/arch</code> (<code>makepkg -si</code>). Все файлы и лицензии — на <a href="https://github.com/leanid3/fo76_db/releases/latest">странице релиза</a>.</p>
+</div></section>
+
+<section id="start"><div class="wrap">
+  <h2>Начало работы</h2>
+  <p class="sub">Нужен установленный Fallout 76 на этом же компьютере и интернет для первого наполнения.</p>
+  <ol class="steps">
+    <li><b>Запустите</b> выбранный вариант. Откроется окно или страница <code>http://127.0.0.1:7676</code>.</li>
+    <li><b>Папка игры</b> находится сама (Steam, Xbox, Bethesda.net). Если нет — «Настройки → Пути игры».</li>
+    <li>На главной в блоке <b>«Данные»</b> нажмите «Каталог» (≈1 мин), затем «История» (первый раз ≈15 мин и ≈1 ГБ) и «События».</li>
+    <li><b>Инвентарь</b> (по желанию): установите моды <a href="https://www.nexusmods.com/fallout76/mods/2335">Invent-O-Matic Stash</a> с выгрузкой Extract и <a href="https://www.nexusmods.com/fallout76/mods/2576">Improved Workbench</a>, выгрузите инвентарь в игре — файлы импортируются сами.</li>
+    <li>Если что-то не работает — «Настройки → Диагностика → Проверить» подскажет, чего не хватает.</li>
+  </ol>
+  <p style="margin-top:18px"><a class="btn primary" href="docs/manual/">Полная инструкция</a> <a class="btn" href="docs/user-guide/">Руководство по страницам</a> <a class="btn" href="docs/app-map/">Карта приложения</a></p>
+  <p class="note" style="margin-top:18px"><b>Из исходников:</b> <code>git clone https://github.com/leanid3/fo76_db.git</code>, <code>python3 -m venv .venv &amp;&amp; .venv/bin/pip install -e .</code>, <code>.venv/bin/python -m fo76db serve --open</code>.</p>
+</div></section>
+</main>
+<footer><div class="wrap">
+  <div><a href="docs/">Документация</a> · <a href="docs/changelog/">Журнал изменений</a> · <a href="docs/api/">API</a> · <a href="https://github.com/leanid3/fo76_db/issues">Сообщить об ошибке</a> · <a href="https://github.com/leanid3/fo76_db">Исходный код</a> · <a href="docs/credits/">Благодарности</a></div>
+  <div>FO76 DB — неофициальная фанатская утилита, не связана с Bethesda Softworks. Файлы игры не распространяются: утилита читает установленную игру. Лицензия — GNU AGPL v3 или новее.</div>
+</div></footer>
+<script>
+// Версия и размеры файлов последнего релиза; без сети и при лимите GitHub остаются прямые ссылки на «latest»
+fetch("https://api.github.com/repos/leanid3/fo76_db/releases/latest", { headers: { Accept: "application/vnd.github+json" } })
+  .then(r => r.ok ? r.json() : Promise.reject())
+  .then(rel => {
+    const mb = n => (n / 1048576 >= 10 ? Math.round(n / 1048576) : (n / 1048576).toFixed(1)) + " МБ";
+    document.getElementById("ver").textContent = `Версия ${rel.tag_name.replace(/^v/, "")} от ${rel.published_at.slice(0, 10)} · Windows 10/11 и Linux · бесплатно, открытый код (GNU AGPL v3)`;
+    const sizes = Object.fromEntries(rel.assets.map(a => [a.name, a]));
+    for (const a of document.querySelectorAll("a[data-asset]")) {
+      const f = sizes[a.dataset.asset];
+      if (f) { a.href = f.browser_download_url; a.after(` (${mb(f.size)})`); }
+    }
+  })
+  .catch(() => {});
+</script>
+</body>
+</html>

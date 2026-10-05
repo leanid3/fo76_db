@@ -12,7 +12,7 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `fo76db/sources/esm.py`, `strings.py` | Чтение `SeventySix.esm` (FormID, EditorID, FULL) и строковых таблиц из `Localization.ba2` |
 | `fo76db/sources/dumps.py` | Релизы fwdekker/fo76-dumps: список через GitHub API, скачивание и распаковка 7z в `data/cache/`; `sevenzip()` ищет 7-Zip |
 | `pyproject.toml`, `packaging/`, `Dockerfile`, `compose.yaml`, `.github/workflows/build.yml` | Сборка: пакет, PyInstaller (`packaging/fo76db.spec`, лицензии — `packaging/third_party.py`), Flatpak (`packaging/flatpak/`), Docker, GitHub Actions — см. [packaging.md](packaging.md) |
-| `mkdocs.yml`, `packaging/pages/prepare.py`, `.github/workflows/pages.yml` | Сайт документации на GitHub Pages |
+| `packaging/pages/site/`, `mkdocs.yml`, `packaging/pages/prepare.py`, `.github/workflows/pages.yml` | Сайт на GitHub Pages: лендинг в корне, документация MkDocs в `/docs/` |
 | `.devcontainer/devcontainer.json` | GitHub Codespaces / Dev Containers |
 | `LICENSE`, `CREDITS.md`, `fo76db/web/static/tabulator.LICENSE.txt` | Лицензия (GNU AGPL v3 или новее), благодарности и источники, лицензия Tabulator |
 | `fo76db/sources/wiki_patches.py` | Названия и даты обновлений из таблицы патчей Fallout Wiki |

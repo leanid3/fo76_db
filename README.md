@@ -5,7 +5,7 @@
 
 Игру и пресеты утилита только читает (исключение — редактор правил IOM, только по подтверждению). Всё своё хранит в `data/`.
 
-Начните с [инструкции пользователя](docs/manual.md); устройство — [карта приложения](docs/app-map.md). Подробная документация — в [`docs/`](docs/README.md) и на сайте [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/),
+Начните с [инструкции пользователя](docs/manual.md); устройство — [карта приложения](docs/app-map.md). Подробная документация — в [`docs/`](docs/README.md) и на сайте [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/) (описание, загрузки, документация),
 изменения — в [`CHANGELOG.md`](CHANGELOG.md). Готовые сборки — в [релизах](https://github.com/leanid3/fo76_db/releases/latest).
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/leanid3/fo76_db)

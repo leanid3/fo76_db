@@ -1,13 +1,14 @@
-# Сайт документации (GitHub Pages). Исходники страниц готовит packaging/pages/prepare.py из README.md и docs/.
-# Локально: pip install mkdocs-material && python packaging/pages/prepare.py && mkdocs serve
+# Сайт на GitHub Pages: лендинг (packaging/pages/site) в корне, документация MkDocs — в /docs/.
+# Исходники страниц документации готовит packaging/pages/prepare.py из README.md и docs/.
+# Локально: pip install "mkdocs<2" mkdocs-material && python packaging/pages/prepare.py && mkdocs build && cp -r packaging/pages/site/. build/site/
 site_name: FO76 DB
 site_description: База предметов, инвентаря и событий Fallout 76
-site_url: https://leanid3.github.io/fo76_db/
+site_url: https://leanid3.github.io/fo76_db/docs/
 repo_url: https://github.com/leanid3/fo76_db
 repo_name: leanid3/fo76_db
 edit_uri: ""
 docs_dir: build/pages-src
-site_dir: build/site
+site_dir: build/site/docs   # лендинг (packaging/pages/site) лежит в корне build/site, документация — в docs/
 copyright: FO76 DB — GNU AGPL v3. Не связано с Bethesda Softworks.
 
 theme:
@@ -33,7 +34,9 @@ theme:
 markdown_extensions:
   - admonition
   - tables
-  - toc: { permalink: true }
+  - toc:
+      permalink: true
+      slugify: !!python/name:pymdownx.slugs.uslugify   # русские заголовки: якоря вида #лицензия
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -42,6 +45,7 @@ markdown_extensions:
   - pymdownx.details
 
 nav:
+  - О программе: https://leanid3.github.io/fo76_db/
   - Главная: index.md
   - Документация:
       - Обзор: documentation.md
@@ -53,6 +57,7 @@ nav:
       - PWA (ПК и телефон): pwa.md
       - Редактор правил IOM: iom-editor.md
       - Устройство: architecture.md
+      - API для сторонних фронтендов: api.md
       - Предложения: proposals.md
   - Журнал изменений: changelog.md
   - Благодарности: credits.md

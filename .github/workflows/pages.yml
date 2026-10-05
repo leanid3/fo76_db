@@ -1,8 +1,6 @@
-# Сайт документации на GitHub Pages: https://leanid3.github.io/fo76_db/
-# Включить один раз: Settings → Pages → Source: GitHub Actions. Pages бесплатен для публичных репозиториев,
-# для приватного нужен платный план GitHub. Сам fo76db на Pages не запускается: это статический хостинг, а утилите нужен
-# сервер Python и файлы игры. Здесь только документация и ссылки на загрузки.
-# Не настроен
+# Сайт на GitHub Pages: https://leanid3.github.io/fo76_db/ — лендинг (packaging/pages/site) и документация MkDocs в /docs/.
+# Включить один раз: Settings → Pages → Source: GitHub Actions. Сам fo76db на Pages не запускается: это статический хостинг,
+# а утилите нужен сервер Python и файлы игры. Здесь только описание, документация и ссылки на загрузки.
 name: pages
 
 on:
@@ -17,6 +15,7 @@ on:
         "docs/**",
         "mkdocs.yml",
         "packaging/pages/**",
+        "fo76db/web/static/icons/**",
         ".github/workflows/pages.yml",
       ]
   workflow_dispatch:
@@ -32,18 +31,23 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
+          cache: pip
+          cache-dependency-path: .github/workflows/pages.yml
       - name: Сборка сайта
         run: |
           # MkDocs 2.0 несовместим с темой Material — держимся 1.x
           python -m pip install "mkdocs>=1.6,<2" "mkdocs-material>=9.6,<10"
           python packaging/pages/prepare.py
-          mkdocs build --strict
+          mkdocs build --strict            # документация → build/site/docs
+          cp -r packaging/pages/site/. build/site/   # лендинг → корень сайта
+          touch build/site/.nojekyll
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -51,7 +55,8 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

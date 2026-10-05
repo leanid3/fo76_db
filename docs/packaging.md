@@ -14,7 +14,7 @@
 | Docker | сервер, NAS, изоляция | `docker compose up -d` или образ `ghcr.io/<владелец>/fo76db` |
 | Codespaces | разработка в браузере, без установки | кнопка «Code → Codespaces» на GitHub |
 
-Документация есть и сайтом: [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/) (GitHub Pages).
+Есть сайт с описанием, загрузками и документацией: [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/) (GitHub Pages).
 
 Готовые файлы собирает GitHub Actions (`.github/workflows/build.yml`), см. ниже.
 
@@ -208,19 +208,20 @@ docker compose run --rm web history
   - файлом, без registry: `fo76db-docker-image.tar.gz` из релиза или артефактов запуска →
     `gunzip -c fo76db-docker-image.tar.gz | docker load` (образ `fo76db:latest`).
 
-## Сайт документации (GitHub Pages)
+## Сайт (GitHub Pages)
 
-`README.md`, `docs/`, `CHANGELOG.md`, `CREDITS.md` и `LICENSE` публикуются сайтом [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/)
-(workflow `.github/workflows/pages.yml`, MkDocs + тема Material).
+Сайт [leanid3.github.io/fo76_db](https://leanid3.github.io/fo76_db/) состоит из двух частей (workflow `.github/workflows/pages.yml`):
 
-- **Только документация.** Pages — статический хостинг: запустить там fo76db нельзя (нужны сервер Python, база и файлы игры).
-- **Включить один раз:** Settings → Pages → Source: «GitHub Actions». Pages бесплатен для публичных репозиториев; для приватного
-  нужен платный план GitHub (Pro и выше).
-- Сайт пересобирается при push в `main`, если менялись документы, и вручную (Run workflow).
-- `packaging/pages/prepare.py` собирает страницы в `build/pages-src`: README становится главной (с блоком «Скачать»), относительные
-  ссылки ведут на страницы сайта или на файлы в репозитории.
-- Локально: `pip install "mkdocs<2" mkdocs-material && python packaging/pages/prepare.py && mkdocs serve`. MkDocs держим на 1.x:
-  2.0 несовместим с темой Material.
+- **Лендинг** — `packaging/pages/site/` (`index.html`, `img/`, иконки): описание, возможности, скриншоты, таблица загрузок, быстрый старт. Один HTML-файл без сборщика и внешних ресурсов; версия и размеры файлов подтягиваются из GitHub API (`releases/latest`), без сети остаются прямые ссылки на `releases/latest/download/<файл>`. Скриншоты — только общие данные игры (каталог, карточка, обновления), без персонажей; обновлять: headless-Chromium по запущенному `serve`.
+- **Документация** — в `/docs/`: `README.md`, `docs/`, `CHANGELOG.md`, `CREDITS.md`, `LICENSE` через MkDocs + тема Material.
+
+Правила:
+
+- **Только описание и документация.** Pages — статический хостинг: запустить там fo76db нельзя (нужны сервер Python, база и файлы игры).
+- **Включить один раз:** Settings → Pages → Source: «GitHub Actions».
+- Сайт пересобирается при push в `main`, если менялись документы, лендинг или `mkdocs.yml`, и вручную (Run workflow).
+- `packaging/pages/prepare.py` собирает страницы документации в `build/pages-src`: README становится главной (с блоком «Скачать»), относительные ссылки ведут на страницы сайта или на файлы в репозитории. `mkdocs build --strict` кладёт их в `build/site/docs`, затем лендинг копируется в корень `build/site`.
+- Локально: `pip install "mkdocs<2" mkdocs-material && python packaging/pages/prepare.py && mkdocs build && cp -r packaging/pages/site/. build/site/`, затем `python -m http.server -d build/site`. MkDocs держим на 1.x: 2.0 несовместим с темой Material.
 
 ## Codespaces
 
