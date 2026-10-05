@@ -1,0 +1,304 @@
+{% extends "base.html" %}
+{% block title %}Правила IOM — FO76 DB{% endblock %}
+{% block main %}
+<h1>Правила Invent-O-Matic Stash</h1>
+<p class="muted small" id="file-info"></p>
+<div class="toolbar">
+  <span id="dirty" class="tag warn" hidden>есть несохранённые изменения</span>
+  <button id="btn-check">Проверить</button>
+  <button id="btn-download" title="Скачать черновик отдельным файлом, оригинал не меняется">⭳ Скачать черновик</button>
+  <button id="btn-reload" title="Отбросить черновик и перечитать файл">Перечитать файл</button>
+  <button id="btn-save" class="danger" title="Показать список изменений и записать черновик в файл игры (со старой версией в бэкап)">Записать в игру…</button>
+  <button id="btn-restore" title="Выбрать бэкап и вернуть его (текущая версия перед этим тоже уйдёт в бэкап)">Откатить к бэкапу…</button>
+</div>
+<div id="problems"></div>
+<div class="tabs" id="tabs"></div>
+<div class="card" id="panel"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+// Подписи разделов и полей. Неизвестные поля показываются под своим именем, ничего не теряется.
+const SECTIONS = {
+  _general: ["Общие", "Простые настройки верхнего уровня."],
+  _balance: ["Баланс", "Правила перекладывания с количеством: сколько держать в инвентаре. Строится по инвентарю персонажа из шапки."],
+  transferConfig: ["Перекладывание", "Кнопки перекладывания между инвентарём и контейнером (тайник, ящик, силовая броня)."],
+  npcSellConfig: ["Продажа NPC", "Автопродажа торговцам-NPC."],
+  buyConfig: ["Покупка", "Автопокупка у торговцев и в лагерях игроков."],
+  scrapConfig: ["Разбор", "Автоматический разбор на верстаке."],
+  lootConfig: ["Лут", "Автоподбор из контейнеров и трупов."],
+  protectionConfig: ["Защита", "Защита предметов от продажи, разбора и перекладывания."],
+  campAssignConfig: ["Лагерь и лавка", "Выставление на продажу в лавку и на витрины."],
+  defaultVendorItemPrice: ["Цены в лавке", "Цены по умолчанию при выставлении в лавку."],
+  legendaryModsConfig: ["Лег. моды", "Пометки «можно изучить» на легендарных предметах."],
+  additionalColumnsConfig: ["Колонки", "Дополнительные колонки в списках."],
+  itemNamesGroupConfig: ["Группы имён", "Именованные списки предметов, на которые ссылаются правила (например IGNORED_GROUP)."],
+  extractConfig: ["Выгрузка", "Extract — выгрузка инвентаря в itemsmod.ini, которую читает fo76db."],
+  _json: ["JSON", "Весь черновик целиком. Для полей, которых нет в формах."],
+};
+const FIELDS = {
+  enabled: "включено", testRun: "пробный запуск (ничего не делает, только пишет)", debug: "отладка", name: "название (кнопка)",
+  hotkey: "клавиша", showButton: "показывать кнопку", showMessage: "показывать сообщение", closeMenu: "закрыть меню после",
+  delay: "задержка, мс", maxItems: "не больше предметов за раз", amount: "количество (0 — все)", matchMode: "сравнение имён",
+  itemNames: "названия предметов (по строке)", types: "типы предметов", direction: "направление", excluded: "исключения",
+  ignoreItemNames: "игнорировать", transferLegendaries: "легендарные со звёздами", legendaryEffects: "легендарные эффекты",
+  legendaryEffectsMatchMode: "сравнение эффектов", checkLegendaryEffects: "проверять эффекты", exactAmountInDestination: "держать ровно столько в месте назначения",
+  transferFavorite: "переносить избранное", transferEquipped: "переносить надетое", sellFavorite: "продавать избранное", sellEquipped: "продавать надетое",
+  scrapFavorite: "разбирать избранное", scrapEquipped: "разбирать надетое", onlyLegendaries: "только легендарные", onlyHighlightedItem: "только выделенный предмет",
+  maxPrice: "макс. цена", price: "цена", repeat: "повторов", checkAccountName: "проверять аккаунт", accountName: "аккаунт",
+  checkCharacterName: "проверять персонажа", characterName: "персонаж", configs: "правила", useCustomFormat: "свой формат (fo76db не прочитает)",
+};
+const DIRECTION_RU = { FROM_CONTAINER: "из контейнера в инвентарь", TO_CONTAINER: "из инвентаря в контейнер" };
+const CAT_TO_TYPE = { ammo: "AMMO", aid: "AID", food: "FOOD_WATER", junk: "JUNK", weapon: "WEAPON", armor: "ARMOR", apparel: "APPAREL",
+                      plan: "NOTES", note: "NOTES", holotape: "HOLO" };
+
+let FILE = null, draft = null, tab = decodeURIComponent(location.hash.slice(1)) || "_general", enums = {};
+const $ = id => document.getElementById(id);
+const el = (tag, attrs = {}, ...kids) => { const e = Object.assign(document.createElement(tag), attrs); e.append(...kids.filter(k => k != null)); return e; };
+function setDirty(v = true) { $("dirty").hidden = !v; }
+window.addEventListener("beforeunload", e => { if (!$("dirty").hidden) { e.preventDefault(); e.returnValue = ""; } });
+
+// Возможные значения строковых полей — из самого файла (без догадок о версии мода)
+function collectEnums(o) {
+  const out = {};
+  (function walk(v, key) {
+    if (Array.isArray(v)) { if (v.length && v.every(x => typeof x === "string" && /^[A-Z0-9_ -]+$/.test(x))) for (const x of v) (out[key] ??= new Set()).add(x); v.forEach(x => walk(x, key)); }
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) walk(x, k);
+    else if (typeof v === "string" && /^[A-Z][A-Z0-9_]+$/.test(v)) (out[key] ??= new Set()).add(v);
+  })(o, "");
+  return Object.fromEntries(Object.entries(out).map(([k, s]) => [k, [...s].sort()]));
+}
+
+async function load() {
+  try { FILE = await api("/api/iom"); }
+  catch (e) { $("panel").innerHTML = `<p class="no">${esc(e.message)}</p>`; return; }
+  draft = structuredClone(FILE.data);
+  enums = collectEnums(draft);
+  $("file-info").innerHTML = `Файл: <code>${esc(FILE.path)}</code> · жёстких ссылок: ${FILE.links}`
+    + (FILE.links < 2 ? ' <span class="tag bad">ссылка modconfig ↔ Data порвана!</span>' : "")
+    + (FILE.exact ? "" : ' · <span class="tag warn" title="После сохранения поменяется только форматирование">форматирование файла нестандартное</span>')
+    + ` · бэкапы: <code>_backup_&lt;дата&gt;/</code> (${FILE.backups.length})`;
+  setDirty(false); showProblems(FILE.problems); drawTabs(); draw();
+}
+
+function showProblems(list) {
+  const lv = { error: ["bad", "ошибка"], warn: ["warn", "внимание"], info: ["", "к сведению"] };
+  $("problems").innerHTML = list.length ? '<div class="card small">' + list.map(p =>
+    `<div><span class="tag ${lv[p.level][0]}">${lv[p.level][1]}</span> ${esc(p.message)} <span class="muted">${esc(p.path)}</span></div>`).join("") + "</div>" : "";
+}
+
+function drawTabs() {
+  const keys = ["_general", "_balance", ...Object.keys(draft).filter(k => draft[k] && typeof draft[k] === "object"), "_json"];
+  $("tabs").innerHTML = "";
+  for (const k of keys) {
+    const b = el("button", { textContent: (SECTIONS[k] || [k])[0], className: k === tab ? "primary" : "", title: k.startsWith("_") ? "" : k });
+    b.onclick = () => { tab = k; history.replaceState(null, "", "#" + k); drawTabs(); draw(); };
+    $("tabs").append(b);
+  }
+}
+
+// ---------- универсальный редактор значения ----------
+function label(key) { return FIELDS[key] ? `${FIELDS[key]} <span class="muted small">${esc(key)}</span>` : esc(key); }
+
+function editor(parent, key, rerender) {
+  const v = parent[key];
+  const set = x => { parent[key] = x; setDirty(); };
+  if (typeof v === "boolean") { const i = el("input", { type: "checkbox", checked: v }); i.onchange = () => set(i.checked); return i; }
+  if (typeof v === "number") { const i = el("input", { type: "number", value: v, step: "any", style: "width:110px" }); i.oninput = () => i.value !== "" && set(+i.value); return i; }
+  if (typeof v === "string") {
+    const i = el("input", { value: v, style: `width:${Math.min(Math.max(v.length + 6, 12), 60)}ch` });
+    if (enums[key]) { const id = "dl-" + key; if (!document.getElementById(id)) document.body.append(el("datalist", { id }, ...enums[key].map(x => el("option", { value: x })))); i.setAttribute("list", id); }
+    i.oninput = () => set(i.value); return i;
+  }
+  if (v === null) return el("span", { className: "muted", textContent: "null" });
+  if (Array.isArray(v) && v.every(x => typeof x === "string" || typeof x === "number")) {
+    const nums = v.length > 0 && v.every(x => typeof x === "number");
+    const t = el("textarea", { value: v.join("\n"), rows: Math.min(Math.max(v.length, 2), 12), style: "width:min(420px,100%)",
+      placeholder: enums[key] ? "например: " + enums[key].slice(0, 4).join(", ") : "по одному в строке" });
+    t.oninput = () => {
+      const lines = t.value === "" ? (v.length === 1 && v[0] === "" ? [""] : []) : t.value.split("\n");
+      set(nums ? lines.filter(x => x.trim() !== "").map(Number) : lines);
+    };
+    return t;
+  }
+  if (Array.isArray(v) && v.every(x => x && typeof x === "object" && !Array.isArray(x))) return ruleList(v, rerender);
+  if (v && typeof v === "object" && !Array.isArray(v)) return fields(v, rerender);
+  // смешанный массив — как JSON
+  const t = el("textarea", { value: JSON.stringify(v, null, 1), rows: 4, style: "width:min(420px,100%)" });
+  t.oninput = () => { try { set(JSON.parse(t.value)); t.classList.remove("bad-input"); } catch (e) { t.classList.add("bad-input"); } };
+  return t;
+}
+
+function fields(obj, rerender) {
+  const table = el("table", { className: "kv form" });
+  for (const k of Object.keys(obj)) {
+    const td = el("td"); td.innerHTML = label(k);
+    table.append(el("tr", {}, td, el("td", {}, editor(obj, k, rerender))));
+  }
+  return table;
+}
+
+// Список правил: сворачиваемые карточки, копирование, удаление, порядок
+function ruleList(arr, rerender) {
+  const box = el("div", { className: "rules" });
+  arr.forEach((r, i) => {
+    const title = r.name || r.README || `правило ${i + 1}`;
+    const head = el("summary", {},
+      el("span", { className: "tag " + (r.enabled === false ? "bad" : ""), textContent: r.enabled === false ? "выкл" : "вкл" }), " ",
+      el("b", { textContent: title }), " ",
+      el("span", { className: "muted small", textContent: [r.hotkey && "клавиша " + r.hotkey, r.direction && DIRECTION_RU[r.direction],
+        r.amount != null && "кол-во " + r.amount, r.testRun && "пробный"].filter(Boolean).join(" · ") }));
+    const tools = el("div", { className: "toolbar small" });
+    const btn = (t, f, tip) => { const b = el("button", { textContent: t, title: tip }); b.onclick = async e => { e.preventDefault(); if (await f() === false) return; setDirty(); rerender(); }; tools.append(b); };
+    btn("⧉ копия", () => arr.splice(i + 1, 0, { ...structuredClone(r), enabled: false, name: (r.name || "") + " (копия)" }), "Копия правила (выключенная)");
+    if (i > 0) btn("↑", () => arr.splice(i - 1, 0, ...arr.splice(i, 1)), "Выше");
+    if (i < arr.length - 1) btn("↓", () => arr.splice(i + 1, 0, ...arr.splice(i, 1)), "Ниже");
+    btn("✕ удалить", async () => { if (!await uiConfirm(`Удалить «${title}»?`, { ok: "Удалить", danger: true })) return false; arr.splice(i, 1); }, "Удалить правило");
+    const d = el("details", { className: "rule" }, head, tools, fields(r, rerender));
+    d.dataset.idx = i;
+    box.append(d);
+  });
+  return box;
+}
+
+// ---------- вкладки ----------
+function keepOpen(fn) {
+  // перерисовать, не сворачивая открытые карточки
+  const open = [...document.querySelectorAll("#panel details[open]")].map(d => d.dataset.idx + "|" + d.querySelector("summary").textContent);
+  fn();
+  for (const d of document.querySelectorAll("#panel details")) if (open.includes(d.dataset.idx + "|" + d.querySelector("summary").textContent)) d.open = true;
+}
+function draw() {
+  const p = $("panel"); p.innerHTML = "";
+  const [title, hint] = SECTIONS[tab] || [tab, ""];
+  p.append(el("h2", { style: "margin-top:0", textContent: title }), el("p", { className: "muted small", textContent: hint }));
+  const rerender = () => keepOpen(draw);
+  if (tab === "_general") {
+    const scalars = Object.fromEntries(Object.entries(draft).filter(([k, v]) => v === null || typeof v !== "object"));
+    const t = fields(scalars, rerender);
+    // правки пишутся в копию — перенести в черновик
+    t.addEventListener("input", () => Object.assign(draft, scalars)); t.addEventListener("change", () => Object.assign(draft, scalars));
+    p.append(t);
+  } else if (tab === "_json") {
+    const t = el("textarea", { value: JSON.stringify(draft, null, "\t"), style: "width:100%;height:65vh;font:12px ui-monospace,monospace" });
+    const msg = el("div", { className: "small" });
+    t.oninput = () => { try { draft = JSON.parse(t.value); enums = collectEnums(draft); setDirty(); msg.textContent = "✔ JSON корректен"; msg.className = "small yes"; }
+                        catch (e) { msg.textContent = "Ошибка: " + e.message; msg.className = "small no"; } };
+    p.append(msg, t);
+  } else if (tab === "_balance") drawBalance(p);
+  else {
+    const v = draft[tab];
+    if (Array.isArray(v)) {
+      const add = el("button", { textContent: "＋ новое правило", title: "Копия последнего правила, выключенная" });
+      add.onclick = () => { v.push({ ...structuredClone(v[v.length - 1] || {}), enabled: false, name: "Новое правило" }); setDirty(); rerender(); };
+      p.append(add, editor(draft, tab, rerender));
+    } else p.append(editor(draft, tab, rerender));
+  }
+}
+
+// ---------- Баланс: правила с количеством против реального инвентаря ----------
+let INV = null;
+async function drawBalance(p) {
+  const ch = currentChar();
+  if (!ch) { p.append(el("p", { className: "no", textContent: "Выберите персонажа в шапке — баланс считается по его последней выгрузке." })); }
+  INV = INV || await api("/api/inventory");
+  const mine = INV.filter(x => String(x.character_id) === ch);
+  const count = (name, ct) => mine.filter(x => x.name.toLowerCase() === name.toLowerCase() && x.container === ct).reduce((s, x) => s + x.count, 0);
+  const rules = (draft.transferConfig || []).map((r, i) => [r, i]).filter(([r]) => typeof r.amount === "number" && r.amount > 0 && r.matchMode === "EXACT" && Array.isArray(r.itemNames));
+  const groups = { AMMO: "Патроны", AID: "Помощь", FOOD_WATER: "Еда и напитки", "": "Прочее" };
+  const table = el("table", { className: "list" });
+  table.innerHTML = "<tr><th>Правило</th><th>Предмет</th><th>Сейчас: инв. / тайник</th><th>Держать</th><th>Что сделает</th><th>Клавиша</th></tr>";
+  for (const [gt, gname] of Object.entries(groups)) {
+    const inGroup = rules.filter(([r]) => gt ? (r.types || []).includes(gt) : !(r.types || []).some(t => t in groups));
+    if (!inGroup.length) continue;
+    table.append(el("tr", {}, el("td", { colSpan: 6, innerHTML: `<b class="yes">${gname}</b>` })));
+    for (const [r, i] of inGroup) for (const name of r.itemNames) {
+      const inv = count(name, "player"), st = count(name, "stash");
+      const take = (want, have) => !have ? `нечего забрать — в тайнике 0 (нужно ${want})`
+        : `заберёт ${Math.min(want, have)}` + (have < want ? ` (в тайнике только ${have})` : "");
+      const put = (want, have) => !have ? "нечего класть — в инвентаре 0" : `положит ${Math.min(want, have)}`;
+      let what;
+      if (!ch) what = "—";
+      else if (r.direction === "FROM_CONTAINER" && r.exactAmountInDestination)
+        what = inv < r.amount ? take(r.amount - inv, st) : inv > r.amount ? `положит ${inv - r.amount}` : "ничего — уже ровно";
+      else if (r.direction === "FROM_CONTAINER") what = take(r.amount, st);
+      else if (r.direction === "TO_CONTAINER" && r.exactAmountInDestination) what = st < r.amount ? put(r.amount - st, inv) : "ничего";
+      else what = put(r.amount, inv);
+      const amt = el("input", { type: "number", value: r.amount, style: "width:90px" });
+      amt.oninput = () => { if (amt.value !== "") { r.amount = +amt.value; setDirty(); } };
+      amt.onchange = () => keepOpen(draw);
+      table.append(el("tr", { className: r.enabled === false ? "muted" : "" },
+        el("td", { textContent: (r.name || `#${i + 1}`) + (r.enabled === false ? " (выкл)" : "") }), el("td", { textContent: name }),
+        el("td", { textContent: ch ? `${inv} / ${st}` : "—" }), el("td", {}, amt), el("td", { textContent: what }), el("td", { textContent: r.hotkey || "" })));
+    }
+  }
+  if (!rules.length) table.append(el("tr", {}, el("td", { colSpan: 6, className: "muted", textContent: "Правил с количеством и точными названиями пока нет." })));
+  p.append(table);
+
+  // новое правило из инвентаря
+  const names = [...new Set(mine.filter(x => ["ammo", "aid", "food"].includes(x.category)).map(x => x.name))].sort();
+  const dl = el("datalist", { id: "inv-names" }, ...names.map(n => el("option", { value: n })));
+  const nameI = el("input", { placeholder: "Предмет из инвентаря", style: "width:280px" }); nameI.setAttribute("list", "inv-names");
+  const amtI = el("input", { type: "number", value: 100, style: "width:90px", title: "Сколько держать в инвентаре" });
+  const keyI = el("input", { value: "1", maxLength: 3, style: "width:50px", title: "Клавиша кнопки" });
+  const add = el("button", { className: "primary", textContent: "＋ Держать в инвентаре" });
+  add.onclick = () => {
+    const name = nameI.value.trim(); if (!name) return;
+    const item = mine.find(x => x.name === name);
+    const type = item && CAT_TO_TYPE[item.category];
+    (draft.transferConfig ||= []).push({
+      testRun: false, name: `Баланс: ${name} ${amtI.value}`, enabled: true, debug: false, showButton: true, showMessage: false,
+      hotkey: keyI.value || "1", amount: +amtI.value, exactAmountInDestination: true, ...(type ? { types: [type] } : {}),
+      matchMode: "EXACT", itemNames: [name], direction: "FROM_CONTAINER",
+    });
+    setDirty(); draw();
+  };
+  p.append(el("h2", { textContent: "Новое правило баланса" }),
+    el("p", { className: "muted small", textContent: "Кнопка в меню тайника будет забирать недостающее или класть лишнее, чтобы в инвентаре было ровно столько. Названия — как в выгрузке (на языке клиента)." }),
+    el("div", { className: "toolbar" }, dl, nameI, amtI, keyI, add));
+}
+
+// ---------- кнопки ----------
+$("btn-check").onclick = async () => showProblems(await post("/api/iom/validate", { data: draft }));
+$("btn-download").onclick = () => {
+  const a = el("a", { href: URL.createObjectURL(new Blob([JSON.stringify(draft, null, "\t") + "\n"], { type: "application/json" })),
+                      download: "inventOmaticStashConfig.draft.json" });
+  a.click(); URL.revokeObjectURL(a.href);
+};
+$("btn-reload").onclick = async () => { if ($("dirty").hidden || await uiConfirm("Отбросить несохранённые изменения?", { ok: "Отбросить", danger: true })) load(); };
+// Список изменений черновика относительно файла: «путь: было → стало» (не больше 40 строк)
+function diffLines(a, b, path, out) {
+  if (out.length >= 40 || JSON.stringify(a) === JSON.stringify(b)) return;
+  const isObj = v => v && typeof v === "object";
+  if (isObj(a) && isObj(b) && Array.isArray(a) === Array.isArray(b)) {
+    for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) diffLines(a[k], b[k], path ? path + "." + k : k, out);
+    return;
+  }
+  const f = v => v === undefined ? "—" : (JSON.stringify(v) ?? "").slice(0, 60);
+  out.push(`${path || "(корень)"}: ${f(a)} → ${f(b)}`);
+}
+$("btn-save").onclick = e => busy(e.currentTarget, async () => {
+  const problems = await post("/api/iom/validate", { data: draft });
+  showProblems(problems);
+  if (problems.some(p => p.level === "error")) return toast("Сначала исправьте ошибки.", "err");
+  const diff = []; diffLines(FILE.data, draft, "", diff);
+  const list = diff.length ? diff.join("\n") + (diff.length >= 40 ? "\n… и другие изменения" : "") : "(значения не изменились, возможно поменяется только форматирование)";
+  if (!await uiConfirm(`Записать черновик в ${FILE.path}?\nСтарая версия сохранится в _backup_<дата>/. Изменения подействуют при следующем открытии меню в игре.\n\nИзменения:\n${list}`, { ok: "Записать в игру", danger: true })) return;
+  try {
+    const r = await post("/api/iom/save", { data: draft, sha1: FILE.sha1, confirm: true });
+    toast(r.changed ? `Записано. Бэкап: ${r.backup}. Жёстких ссылок: ${r.links}` : "Изменений нет — файл не тронут.", "ok", 12000);
+    load();
+  } catch (e) { toast("Не записано: " + e.message, "err"); }
+});
+$("btn-restore").onclick = e => busy(e.currentTarget, async () => {
+  if (!FILE.backups.length) return toast("Бэкапов нет", "warn");
+  const label = b => b.split(/[\\/]/).slice(-2).join("/");
+  const backup = await uiDialog({ text: "Какой бэкап вернуть?\nТекущий файл тоже уйдёт в бэкап, черновик будет отброшен.",
+                                  options: FILE.backups.map(b => ({ value: b, label: label(b) })), ok: "Вернуть", danger: true });
+  if (!backup) return;
+  try { const r = await post("/api/iom/restore", { sha1: FILE.sha1, backup }); toast("Возвращён " + label(r.restored), "ok"); load(); }
+  catch (e) { toast(e.message, "err"); }
+});
+document.addEventListener("charchange", () => tab === "_balance" && draw());
+load();
+</script>
+{% endblock %}

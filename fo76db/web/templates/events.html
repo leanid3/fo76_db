@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}События — FO76 DB{% endblock %}
+{% block main %}
+<h1>События</h1>
+<div class="toolbar">
+  <button id="refresh" title="Скачать календарь, Минерву и сезоны с falloutbuilds.com и fallout.wiki">⟳ Обновить</button>
+  <span class="muted small" id="fetched"></span>
+</div>
+<div class="grid2">
+  <div class="card">
+    <h2 style="margin-top:0">Сегодня</h2>
+    <div id="today" class="muted">Загрузка…</div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Daily Ops</h2>
+    <div id="dailyops" class="muted">Загрузка…</div>
+    <details id="do-edit">
+      <summary class="muted small">Внести или исправить на сегодня</summary>
+      <form id="do-form" class="toolbar" style="flex-direction:column;align-items:stretch;margin-top:6px">
+        <select name="mode"></select>
+        <input name="location" list="do-locations" placeholder="Место">
+        <input name="faction" list="do-factions" placeholder="Враги">
+        <div id="do-mutations" class="toolbar small"></div>
+        <input name="note" placeholder="Заметка (необязательно)">
+        <button class="primary">Сохранить на сегодня</button>
+      </form>
+      <datalist id="do-locations"></datalist><datalist id="do-factions"></datalist>
+      <p class="muted small">Открытого источника ротации нет: смотрите в игре (карта → World Activity) или на
+        <a href="https://nukaknights.com/en/" target="_blank">nukaknights.com</a>. Списки — с fallout.wiki.</p>
+    </details>
+  </div>
+</div>
+
+<h2>Ежедневки</h2>
+<div class="toolbar"><span class="muted small" id="daily-sum"></span>
+  <span class="colpick"><button id="who-btn" title="Каких персонажей показывать в чек-листе">☰ Персонажи</button>
+    <div class="colpick-box card" id="who-box" hidden></div></span></div>
+<div class="card" style="overflow-x:auto"><table class="list" id="daily"></table>
+  <details style="margin-top:8px"><summary class="muted small">Пункты чек-листа</summary>
+    <form id="task-add" class="toolbar" style="margin-top:6px">
+      <input name="task" placeholder="Новый пункт" required>
+      <select name="reset"><option value="daily">каждый день</option><option value="weekly">каждую неделю</option></select>
+      <label class="chk"><input type="checkbox" name="per_char" checked> по персонажам</label>
+      <button>Добавить</button>
+    </form>
+    <p class="muted small">Отметки сбрасываются сами в момент сброса дня или недели в игре. ✕ у пункта — удалить пункт.</p>
+  </details>
+</div>
+
+<div class="grid2" style="margin-top:16px">
+  <div class="card">
+    <h2 style="margin-top:0">Скоро</h2>
+    <div id="soon" class="muted">Загрузка…</div>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Минерва</h2>
+    <div id="minerva" class="muted">Загрузка…</div>
+    <div class="toolbar" style="margin-top:6px"><label class="chk"><input type="checkbox" id="m-unknown"> только не изученные</label>
+      <span class="counter" id="m-count"></span></div>
+    <div id="m-table"></div>
+  </div>
+</div>
+
+<h2>Все события</h2>
+<div class="toolbar" id="filters">
+  <select id="f-kind"><option value="">Все типы</option>{% for k, v in EVENT_KINDS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  <label class="chk"><input type="checkbox" id="f-past"> с прошедшими</label>
+  <span class="counter"></span>
+</div>
+<div id="table"></div>
+<details class="card" style="margin-top:12px">
+  <summary>Добавить событие вручную</summary>
+  <form id="add" class="toolbar" style="flex-direction:column;align-items:stretch;margin-top:8px">
+    <select name="kind">{% for k, v in EVENT_KINDS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    <input name="title" placeholder="Название" required>
+    <div class="toolbar"><label class="muted">Начало <input type="datetime-local" name="start" required></label>
+      <label class="muted">Конец <input type="datetime-local" name="end"></label></div>
+    <input name="source_url" placeholder="Ссылка на источник (необязательно)">
+    <textarea name="note" rows="2" placeholder="Заметка"></textarea>
+    <button class="primary">Сохранить</button>
+  </form>
+  <p class="muted small">Календарь, Минерва и сезоны подтягиваются сами (раз в 6 часов в <code>watch</code> или кнопкой «Обновить»).
+    Вручную стоит вносить только то, чего там нет. Расписание Atom Shop — на <a href="https://uf.atomicshop.fyi" target="_blank">uf.atomicshop.fyi</a>.</p>
+</details>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const CHARS = {{ all_chars|tojson }};
+const fmt = s => s ? s.replace("T", " ").slice(0, 16) : "";
+const dateRu = s => new Date(s).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const dayRu = s => new Date(s).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+const name = e => e.title_ru ? `${esc(e.title_ru)} <span class="muted small">${esc(e.title)}</span>` : esc(e.title);
+const kindTag = e => `<span class="tag">${esc(RU.events[e.kind] || e.kind)}</span>`;
+function left(iso) {
+  const ms = new Date(iso) - Date.now(); if (ms <= 0) return "сейчас";
+  const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4);
+  return (d ? d + " д " : "") + (d || h ? h + " ч " : "") + m + " мин";
+}
+const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
+
+let T;  // ответ /api/today
+async function loadToday() {
+  T = await api("/api/today" + (currentChar() ? "?character_id=" + currentChar() : ""));
+  document.getElementById("fetched").textContent = (T.fetched ? "обновлено " + fmt(T.fetched) : "ещё не обновлялось") + (T.error ? " · ошибка: " + T.error : "");
+  const s = T.season;
+  document.getElementById("today").innerHTML = `
+    <div>${new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" })}</div>
+    <div>Сброс дня через <b data-left="${T.day.end}"></b> <span class="muted small">(${dateRu(T.day.end)})</span></div>
+    <div>Сброс недели через <b data-left="${T.week.end}"></b> <span class="muted small">(${dateRu(T.week.end)})</span></div>
+    ${s ? `<div style="margin-top:6px">${kindTag(s)} <b>Сезон ${s.data.number}: ${esc(s.data.name)}</b>
+      <span class="muted small">с ${dayRu(s.start)}, обновление «${esc(s.data.update)}»</span></div>` : ""}
+    <div style="margin-top:6px">${T.active.length ? T.active.map(e => `<div>${kindTag(e)} <b>${name(e)}</b>
+      <span class="muted small">${e.end ? "до " + dateRu(e.end) : ""}${e.note ? " · " + esc(e.note) : ""}</span></div>`).join("") : '<span class="muted">Сейчас особых событий нет.</span>'}</div>`;
+  const u = T.upcoming;
+  document.getElementById("soon").innerHTML = u.length ? u.map(e => `<div>${kindTag(e)} <b>${name(e)}</b>
+    <span class="muted small">${dayRu(e.start)}${e.end ? " — " + dayRu(e.end) : ""} · через ${left(e.start)}${e.note ? " · " + esc(e.note) : ""}</span></div>`).join("")
+    : "В ближайшие две недели ничего не запланировано.";
+  renderDailyOps(); renderMinerva(); tick();
+}
+function tick() { document.querySelectorAll("[data-left]").forEach(el => el.textContent = left(el.dataset.left)); }
+// после сброса дня перечитать всё: отметки и Daily Ops относятся к новому дню
+setInterval(() => { tick(); if (T && new Date(T.day.end) <= Date.now()) { loadToday(); loadDaily(); } }, 30000);
+
+// ---------- Daily Ops ----------
+function renderDailyOps() {
+  const d = T.dailyops, v = T.dailyops_vars, el = document.getElementById("dailyops");
+  el.innerHTML = d ? `<div><b>${esc(d.data.mode || "")}</b> ${esc(d.data.location || "")}</div>
+      <div>Враги: ${esc(d.data.faction || "—")}</div><div>Мутации: ${esc((d.data.mutations || []).join(", ") || "—")}</div>
+      ${d.note ? `<div class="small muted">${esc(d.note)}</div>` : ""}<div class="small muted">до ${dateRu(d.end)}</div>`
+    : 'Не внесено на сегодня.';
+  const f = document.getElementById("do-form").elements;
+  if (!f.mode.options.length) {
+    f.mode.innerHTML = '<option value="">Режим</option>' + Object.entries(v.modes).map(([m, mut]) => `<option value="${esc(m)}">${esc(m)} (всегда ${esc(mut)})</option>`).join("");
+    document.getElementById("do-locations").innerHTML = v.locations.map(x => `<option value="${esc(x)}">`).join("");
+    document.getElementById("do-factions").innerHTML = v.factions.map(x => `<option value="${esc(x)}">`).join("");
+    document.getElementById("do-mutations").innerHTML = v.mutations.map(x => `<label class="chk"><input type="checkbox" value="${esc(x)}"> ${esc(x)}</label>`).join("");
+    // у режима есть закреплённая мутация — отметить её
+    f.mode.onchange = () => { const m = v.modes[f.mode.value];
+      document.querySelectorAll("#do-mutations input").forEach(cb => { if (cb.value === m) cb.checked = true; }); };
+  }
+  if (d) {
+    f.mode.value = d.data.mode || ""; f.location.value = d.data.location || ""; f.faction.value = d.data.faction || ""; f.note.value = d.note || "";
+    document.querySelectorAll("#do-mutations input").forEach(cb => cb.checked = (d.data.mutations || []).includes(cb.value));
+  }
+}
+document.getElementById("do-form").onsubmit = async e => {
+  e.preventDefault(); const f = e.target.elements;
+  try {
+    await post("/api/dailyops", { mode: f.mode.value, location: f.location.value, faction: f.faction.value, note: f.note.value,
+      mutations: [...document.querySelectorAll("#do-mutations input:checked")].map(cb => cb.value) });
+  } catch (err) { toast(err.message, "err"); return; }
+  document.getElementById("do-edit").open = false; loadToday(); loadAll();
+};
+
+// ---------- Минерва ----------
+let mTable;
+async function renderMinerva() {
+  const m = T.minerva, el = document.getElementById("minerva");
+  if (!m) { el.textContent = "Расписания нет — нажмите «Обновить»."; return; }
+  const ch = CHARS.find(c => String(c.id) === currentChar());
+  el.innerHTML = `<div><b>${esc(m.title_ru || m.title)}</b> — ${esc(m.data.location)}</div>
+    <div class="muted small">${m.active ? "идёт, до " + dateRu(m.end) : "с " + dateRu(m.start) + " (через " + left(m.start) + ") до " + dateRu(m.end)}</div>
+    <div>${m.total} схем${ch ? `, не изучено у ${esc(ch.label)}: <b>${m.unknown}</b>` : " · выберите персонажа в шапке, чтобы видеть, что не изучено"}</div>
+    ${m.wish.length ? `<div>Из вишлиста: <b>${m.wish.map(esc).join(", ")}</b></div>` : ""}
+    <div class="small"><a href="${esc(m.source_url)}" target="_blank">список на falloutbuilds ↗</a></div>`;
+  const rows = await api(`/api/minerva?sale=${m.data.sale}` + (currentChar() ? "&character_id=" + currentChar() : ""));
+  rows.forEach(r => r.plans = r.id);
+  await loadKnown();
+  if (!mTable) {
+    mTable = new Tabulator("#m-table", { layout: "fitColumns", height: 300, data: rows,
+      columns: [
+        { title: "Схема", field: "name_ru", formatter: c => { const d = c.getData();
+            return (d.id ? `<a href="/item/${d.id}">${esc(d.name_ru || d.name_en)}</a>` : esc(d.name_en) + ' <span class="muted small">нет в каталоге</span>')
+              + (d.wish ? ' <span title="в вишлисте">★</span>' : ""); } },
+        knownColumn("plans"),
+      ] });
+    mTable.on("dataFiltered", (f, r) => document.getElementById("m-count").textContent = r.length + " из " + mTable.getDataCount());
+    mTable.on("tableBuilt", applyMFilter);
+  } else { await mTable.setData(rows); applyMFilter(); }
+}
+function applyMFilter() {
+  if (document.getElementById("m-unknown").checked && currentChar()) mTable.setFilter(d => d.id && knownState(d.plans) === "no");
+  else mTable.clearFilter();
+}
+document.getElementById("m-unknown").onchange = applyMFilter;
+
+// ---------- Чек-лист ----------
+let hidden = new Set(store.get("fo76.daily.hidden", []));
+async function loadDaily() {
+  const tasks = await api("/api/daily");
+  const chars = CHARS.filter(c => !hidden.has(c.id));
+  let done = 0, total = 0;
+  const cell = (t, cid) => { const on = t.done.includes(cid); total++; if (on) done++;
+    return `<td style="text-align:center"><input type="checkbox" data-t="${t.id}" data-c="${cid}" ${on ? "checked" : ""}></td>`; };
+  document.getElementById("daily").innerHTML =
+    `<tr><th></th>${chars.map(c => `<th${c.color ? ` style="color:${esc(c.color)}"` : ""}>${esc(c.label)}</th>`).join("")}<th></th></tr>` +
+    tasks.map(t => `<tr><td>${esc(t.title)}${t.reset === "weekly" ? ' <span class="muted small">неделя</span>' : ""}</td>` +
+      (t.per_char ? chars.map(c => cell(t, c.id)).join("") : cell(t, 0) + (chars.length > 1 ? `<td colspan="${chars.length - 1}"></td>` : "")) +
+      `<td><a href="#" class="muted" data-del="${t.id}" title="Удалить пункт">✕</a></td></tr>`).join("");
+  document.getElementById("daily-sum").textContent = `сделано ${done} из ${total}`;
+  document.querySelectorAll("#daily input[data-t]").forEach(cb => cb.onchange = async () => {
+    await post("/api/daily/toggle", { task_id: +cb.dataset.t, character_id: +cb.dataset.c, done: cb.checked }); loadDaily(); });
+  document.querySelectorAll("#daily [data-del]").forEach(a => a.onclick = async e => {
+    e.preventDefault(); if (await uiConfirm("Удалить пункт чек-листа?", { ok: "Удалить", danger: true })) { await post("/api/daily/tasks/" + a.dataset.del, {}, "DELETE"); loadDaily(); } });
+}
+document.getElementById("task-add").onsubmit = async e => {
+  e.preventDefault(); const f = e.target.elements;
+  await post("/api/daily/tasks", { title: f.task.value, reset: f.reset.value, per_char: f.per_char.checked });
+  f.task.value = ""; loadDaily();
+};
+(() => {
+  const btn = document.getElementById("who-btn"), box = document.getElementById("who-box");
+  box.innerHTML = CHARS.map(c => `<label class="chk"><input type="checkbox" value="${c.id}" ${hidden.has(c.id) ? "" : "checked"}> ${esc(c.label)}</label>`).join("");
+  box.querySelectorAll("input").forEach(cb => cb.onchange = () => {
+    cb.checked ? hidden.delete(+cb.value) : hidden.add(+cb.value); store.set("fo76.daily.hidden", [...hidden]); loadDaily(); });
+  btn.onclick = e => { e.stopPropagation(); box.hidden = !box.hidden; };
+  box.onclick = e => e.stopPropagation();
+  document.addEventListener("click", () => box.hidden = true);
+})();
+
+// ---------- Все события ----------
+let table;
+const editable = d => !d.source || d.source === "dailyops";
+async function loadAll() {
+  const ev = await api("/api/events");
+  if (!table) {
+    table = new Tabulator("#table", tableOpts("events", { layout: "fitColumns", height: 400, initialSort: [{ column: "start", dir: "desc" }],
+      columns: [
+        { title: "Тип", field: "kind", width: 170, formatter: c => RU.events[c.getValue()] || c.getValue() },
+        { title: "Название", field: "title", minWidth: 220, formatter: c => name(c.getData()) },
+        { title: "Начало", field: "start", width: 150, formatter: c => fmt(c.getValue()) },
+        { title: "Конец", field: "end", width: 150, formatter: c => fmt(c.getValue()) },
+        { title: "Заметка", field: "note", formatter: "textarea" },
+        { title: "Источник", field: "source", width: 130,
+          formatter: c => ({ falloutbuilds: "falloutbuilds", wiki: "fallout.wiki", dailyops: "Daily Ops (вручную)" })[c.getValue()] || "вручную" },
+        { title: "Ссылка", field: "source_url", width: 70, formatter: c => c.getValue() ? `<a href="${esc(c.getValue())}" target="_blank">↗</a>` : "" },
+        { title: "Удалить", width: 80, headerSort: false, formatter: c => editable(c.getData()) ? "✕" : "",
+          cellClick: async (e, c) => { const d = c.getData(); if (!editable(d)) return;
+            if (await uiConfirm("Удалить событие?", { ok: "Удалить", danger: true })) { await post("/api/events/" + d.id, {}, "DELETE"); loadAll(); loadToday(); } } },
+      ] }));
+    addColumnPicker(table, document.getElementById("filters"));
+    table.on("dataFiltered", (f, r) => document.querySelector("#filters .counter").textContent = r.length + " из " + table.getDataCount());
+    await new Promise(r => table.on("tableBuilt", r));
+  }
+  await table.setData(ev); applyFilter();
+}
+function applyFilter() {
+  const k = document.getElementById("f-kind").value, past = document.getElementById("f-past").checked;
+  const t = new Date(), now = new Date(t - t.getTimezoneOffset() * 6e4).toISOString().slice(0, 16);  // местное время, как в базе
+  table.setFilter(d => (!k || d.kind === k) && (past || !d.end || d.end >= now));
+}
+document.getElementById("f-kind").onchange = applyFilter;
+document.getElementById("f-past").onchange = applyFilter;
+document.getElementById("add").onsubmit = async e => {
+  e.preventDefault();
+  await post("/api/events", Object.fromEntries(new FormData(e.target)));
+  e.target.reset(); loadAll(); loadToday();
+};
+document.getElementById("refresh").onclick = async e => {
+  const b = e.target; b.disabled = true; b.textContent = "⟳ Обновляю…";
+  try { const r = await post("/api/events/refresh", {}); if (r.errors.length) toast("Ошибки:\n" + r.errors.join("\n"), "err"); else toast("События обновлены", "ok"); }
+  catch (err) { toast(err.message, "err"); }
+  b.disabled = false; b.textContent = "⟳ Обновить";
+  loadToday(); loadAll();
+};
+document.addEventListener("charchange", loadToday);
+loadToday(); loadDaily(); loadAll();
+</script>
+{% endblock %}

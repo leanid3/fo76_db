@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Схемы — FO76 DB{% endblock %}
+{% block main %}
+<h1>Схемы и рецепты</h1>
+<div class="tabs">
+  <button data-tab="all">Все схемы</button>
+  <button data-tab="moves" title="Схемы, которые лежат в инвентаре и тайниках: кому их передать и что продать">Передать и продать</button>
+</div>
+<section id="tab-moves" hidden>
+<p class="muted small">Схемы из последних выгрузок инвентаря. «Изучить» — держатель её не знает. «Передать» — держатель знает или это склад, а кто-то
+другой не знает. «Продать» — знают все. Учитываются персонажи, о которых есть данные; склады (мулы) схемы не учат.
+Между персонажами одного аккаунта схему передают через другой аккаунт или обмен.</p>
+<div class="card" id="mv-chars"></div>
+<div class="toolbar" id="mv-filters">
+  <input type="search" id="mq" placeholder="Поиск схемы">
+  <select id="maction"><option value="">Все действия</option><option value="learn">Изучить</option><option value="give">Передать</option><option value="sell">Продать</option></select>
+  <select id="mfrom"><option value="">У любого</option>{% for c in all_chars %}<option value="{{ c.id }}">У {{ c.label }}</option>{% endfor %}</select>
+  <select id="mto"><option value="">Кому угодно</option>{% for c in all_chars %}<option value="{{ c.id }}">Нужна {{ c.label }}</option>{% endfor %}</select>
+  <span class="counter" id="mcount"></span>
+</div>
+<div id="mtable"></div>
+</section>
+<section id="tab-all">
+<p class="muted small">Отметка «авто» — схема была в инвентаре с пометкой «изучено». Остальное отмечается кликом по ячейке персонажа.
+Игра не выгружает полный список изученных схем, поэтому без ручных отметок картина неполная.</p>
+<div class="toolbar" id="filters">
+  <input type="search" id="q" placeholder="Поиск схемы или предмета" data-autofocus>
+  <select id="missing"><option value="">Все</option>
+    {% for c in all_chars %}<option value="c{{ c.id }}">Не изучено у {{ c.label }}</option>{% endfor %}
+    <option value="any">Не изучено ни у кого</option></select>
+  <label class="chk"><input type="checkbox" id="obtain"> только выпадающие</label>
+  <span class="small muted">Выбранные строки:</span>
+  <button id="bulk-on" class="primary">✔ изучено у персонажа из шапки</button>
+  <button id="bulk-off">снять ручную отметку</button>
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+// Вкладки: ?tab=moves
+const TAB = new URLSearchParams(location.search).get("tab") === "moves" ? "moves" : "all";
+for (const b of document.querySelectorAll("[data-tab]")) {
+  b.classList.toggle("primary", b.dataset.tab === TAB);
+  b.onclick = () => { const u = new URLSearchParams(location.search); u.set("tab", b.dataset.tab); location.search = u; };
+}
+document.getElementById("tab-all").hidden = TAB !== "all";
+document.getElementById("tab-moves").hidden = TAB !== "moves";
+if (TAB === "moves") (async () => {
+  const ACT = { learn: ["Изучить", "warn"], give: ["Передать", ""], sell: ["Продать", "bad"] };
+  const d = await api("/api/plans/moves");
+  const learners = new Set(d.learners);
+  const box = document.getElementById("mv-chars");
+  // По персонажу: сколько схем ему можно передать и сколько изучить самому
+  box.innerHTML = '<div class="grid4">' + d.characters.map(ch => {
+    const give = d.moves.filter(m => m.need.includes(ch.id));
+    const learn = d.moves.filter(m => m.action === "learn" && m.character_id === ch.id);
+    const sell = d.moves.filter(m => m.action === "sell" && m.character_id === ch.id);
+    const dot = ch.color || ch.account_color ? `<span class="dot" style="background:${esc(ch.color || ch.account_color)}"></span>` : "";
+    return `<div class="char-card"><h3>${dot}${esc(ch.label)} <span class="muted small">${esc(ch.account_label)}</span></h3>
+      <label class="chk small"><input type="checkbox" data-mule="${ch.id}" ${ch.mule ? "checked" : ""}> склад (не учит схемы)</label>
+      <table class="kv small">
+        ${learners.has(ch.id) ? `<tr><td>Можно передать ему</td><td><a href="?tab=moves&mto=${ch.id}">${new Set(give.map(m => m.formid)).size}</a></td></tr>` : `<tr><td colspan="2" class="muted">${ch.mule ? "склад" : "нет данных об изученных схемах"}</td></tr>`}
+        <tr><td>Изучить самому</td><td><a href="?tab=moves&mfrom=${ch.id}&maction=learn">${learn.length}</a></td></tr>
+        <tr><td>Продать (знают все)</td><td><a href="?tab=moves&mfrom=${ch.id}&maction=sell">${sell.length}</a></td></tr>
+      </table></div>`;
+  }).join("") + "</div>";
+  for (const cb of box.querySelectorAll("[data-mule]"))
+    cb.onchange = async () => { await post("/api/mule", { character_id: +cb.dataset.mule, mule: cb.checked }); location.reload(); };
+  const F = ["mq", "maction", "mfrom", "mto"];
+  readParams(F);
+  const t = new Tabulator("#mtable", tableOpts("plan-moves", {
+    data: d.moves, height: "calc(100vh - 380px)", layout: "fitColumns", initialSort: [{ column: "action", dir: "asc" }],
+    columns: [
+      { title: "Схема", field: "name_ru", minWidth: 240, formatter: c => { const v = c.getData(); return `<a href="/item/${v.id}">${esc(v.name_ru || v.name)}</a>`; } },
+      { title: "Действие", field: "action", width: 110, formatter: c => { const a = ACT[c.getValue()]; return `<span class="tag ${a[1]}">${a[0]}</span>`; },
+        sorter: (a, b) => ["learn", "give", "sell"].indexOf(a) - ["learn", "give", "sell"].indexOf(b), accessorDownload: v => ACT[v][0] },
+      { title: "Кому нужна", field: "need_labels", minWidth: 160, formatter: c => esc((c.getValue() || []).join(", ")), accessorDownload: v => v.join(", ") },
+      { title: "У кого", field: "holder", width: 130 },
+      { title: "Где", field: "container", width: 95, formatter: c => c.getValue() === "stash" ? "тайник" : "инвентарь" },
+      { title: "Кол-во", field: "count", width: 80, hozAlign: "right" },
+      { title: "Изучена у", field: "known_labels", minWidth: 150, formatter: c => esc((c.getValue() || []).join(", ")), accessorDownload: v => v.join(", ") },
+      { title: "English", field: "name_en", minWidth: 180 },
+    ],
+  }));
+  function apply() {
+    const m = textMatcher(document.getElementById("mq").value, ["name_ru", "name_en", "name"]);
+    const a = document.getElementById("maction").value, fr = document.getElementById("mfrom").value, to = document.getElementById("mto").value;
+    t.setFilter(v => m(v) && (!a || v.action === a) && (!fr || v.character_id === +fr) && (!to || v.need.includes(+to)));
+    writeParams(["mq", "maction", "mfrom", "mto"]);
+    const u = new URLSearchParams(location.search); u.set("tab", "moves"); history.replaceState(null, "", "?" + u);
+  }
+  t.on("tableBuilt", apply);
+  t.on("dataFiltered", (f, rows) => document.getElementById("mcount").textContent = rows.length + " записей");
+  for (const id of F) document.getElementById(id).addEventListener("input", debounce(apply));
+  addExport(t, document.getElementById("mv-filters"), "plan-moves");
+})();
+if (TAB === "all") (async () => {
+  const data = await api("/api/plans");
+  const charCols = data.characters.map(ch => ({
+    title: ch.label, field: "c" + ch.id,
+    accessorDownload: v => v === "auto" ? "да (авто)" : v ? "да" : "", width: 110, hozAlign: "center", headerTooltip: ch.account,
+    formatter: c => c.getValue() === "auto" ? '<span class="yes" title="видели в инвентаре">✔ авто</span>' : c.getValue() === "manual" ? '<span class="yes kb" tabindex="0" role="button">✔</span>' : '<span class="no kb" tabindex="0" role="button">—</span>',
+    cellClick: async (e, cell) => {
+      const v = cell.getValue(); const known = !v;
+      if (v === "auto") return;
+      await post("/api/known", { character_id: ch.id, formid: cell.getData().id, known });
+      cell.setValue(known ? "manual" : null);
+    },
+  }));
+  const FILTERS = ["q", "missing", "obtain"];
+  readParams(FILTERS);
+  const table = new Tabulator("#table", tableOpts("plans", {
+    data: data.plans, height: "calc(100vh - 230px)", layout: "fitColumns", index: "id",
+    selectableRows: "highlight",
+    rowHeader: { formatter: "rowSelection", titleFormatter: "rowSelection", titleFormatterParams: { rowRange: "active" },
+                 headerSort: false, hozAlign: "center", width: 40, resizable: false, cellClick: (e, cell) => cell.getRow().toggleSelect() }, initialSort: [{ column: "name_ru", dir: "asc" }],
+    columns: [
+      { title: "Схема", field: "name_ru", formatter: itemLink, minWidth: 240 },
+      { title: "English", field: "name_en", minWidth: 200 },
+      { title: "Даёт", field: "product", minWidth: 160 },
+      { title: "Добавлено", field: "added_update", minWidth: 150 },
+      { title: "Выпадает", field: "in_lvli", width: 90, hozAlign: "center", formatter: c => c.getValue() ? "да" : "" },
+      ...charCols,
+    ],
+  }));
+  function applyFilter() {
+    const m = textMatcher(document.getElementById("q").value, ["name_ru", "name_en", "product"]);
+    const miss = document.getElementById("missing").value, ob = document.getElementById("obtain").checked;
+    const keys = data.characters.map(c => "c" + c.id);
+    table.setFilter(d => m(d) && (!ob || d.in_lvli)
+      && (!miss || (miss === "any" ? keys.every(k => !d[k]) : !d[miss])));
+    writeParams(FILTERS);
+  }
+  table.on("tableBuilt", applyFilter);
+  table.on("dataFiltered", (f, rows) => document.getElementById("count").textContent = rows.length + " схем");
+  async function bulk(known) {
+    const ch = currentChar();
+    if (!ch) return toast("Выберите персонажа в шапке", "warn");
+    const rows = table.getSelectedRows();
+    if (!rows.length) return toast("Отметьте строки галочками слева", "warn");
+    await post("/api/known/bulk", { character_id: +ch, formids: rows.map(r => r.getData().id), known });
+    for (const r of rows) {
+      const cur = r.getData()["c" + ch];
+      if (cur !== "auto") r.update({ ["c" + ch]: known ? "manual" : null });
+    }
+    table.deselectRow();
+  }
+  document.getElementById("bulk-on").onclick = () => bulk(true);
+  document.getElementById("bulk-off").onclick = () => bulk(false);
+  for (const id of FILTERS) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+  const tb = document.getElementById("filters");
+  addSavedSearches(tb, p => { readParams(FILTERS, p); applyFilter(); });
+  addExport(table, tb, "plans");
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,2862 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FO76 DB",
+    "description": "Локальный API утилиты FO76 DB: каталог предметов, инвентарь, роллы, события, настройки.\n\n**Доступ.** С этого компьютера (127.0.0.1, без прокси) токен не нужен. Из сети, если в настройках задан токен, передавайте\n`Authorization: Bearer <токен>` (или cookie `fo76db_token`, или `?token=` один раз). Без токена — 401.\nИзменяющие запросы с чужого `Origin` без Bearer отклоняются (защита от CSRF). Для браузерного фронтенда на другом адресе\nдобавьте его в `cors_origins` в `config.toml`. Запись путей, настроек сети, конфига IOM и подобное — только с этого компьютера.",
+    "version": "2026.10.5"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "description": "Без токена (для Docker HEALTHCHECK и мониторинга): только состояние, без данных пользователя.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "healthz"
+        ]
+      }
+    },
+    "/api/items": {
+      "get": {
+        "summary": "Api Items",
+        "operationId": "api_items_api_items_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "items"
+        ]
+      }
+    },
+    "/api/autotags": {
+      "get": {
+        "summary": "Api Autotags",
+        "description": "Все автотеги с подписями, цветами и числом предметов, по группам.",
+        "operationId": "api_autotags_api_autotags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "autotags"
+        ]
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "summary": "Api Tags",
+        "operationId": "api_tags_api_tags_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "tags"
+        ]
+      },
+      "post": {
+        "summary": "Api Tag Save",
+        "operationId": "api_tag_save_api_tags_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_tag_save_api_tags_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/tags/{tag_id}": {
+      "delete": {
+        "summary": "Api Tag Delete",
+        "operationId": "api_tag_delete_api_tags__tag_id__delete",
+        "parameters": [
+          {
+            "name": "tag_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Tag Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/tags/apply": {
+      "post": {
+        "summary": "Api Tag Apply",
+        "operationId": "api_tag_apply_api_tags_apply_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_tag_apply_api_tags_apply_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/display_name": {
+      "post": {
+        "summary": "Api Display Name",
+        "operationId": "api_display_name_api_display_name_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_display_name_api_display_name_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "display_name"
+        ]
+      }
+    },
+    "/api/wishlist": {
+      "post": {
+        "summary": "Api Wishlist",
+        "operationId": "api_wishlist_api_wishlist_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_wishlist_api_wishlist_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "wishlist"
+        ]
+      }
+    },
+    "/api/saved": {
+      "get": {
+        "summary": "Api Saved",
+        "operationId": "api_saved_api_saved_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Page"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "saved"
+        ]
+      },
+      "post": {
+        "summary": "Api Saved Add",
+        "operationId": "api_saved_add_api_saved_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_saved_add_api_saved_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "saved"
+        ]
+      }
+    },
+    "/api/saved/{sid}": {
+      "delete": {
+        "summary": "Api Saved Delete",
+        "operationId": "api_saved_delete_api_saved__sid__delete",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "saved"
+        ]
+      }
+    },
+    "/api/item/{formid}/wiki": {
+      "get": {
+        "summary": "Api Item Wiki",
+        "description": "Описание и «где взять» со страниц предмета: русская fandom, английская fandom или fallout.wiki. Кэш в `wiki_obtain`.",
+        "operationId": "api_item_wiki_api_item__formid__wiki_get",
+        "parameters": [
+          {
+            "name": "formid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Formid"
+            }
+          },
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "item"
+        ]
+      }
+    },
+    "/api/inventory": {
+      "get": {
+        "summary": "Api Inventory",
+        "operationId": "api_inventory_api_inventory_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "inventory"
+        ]
+      }
+    },
+    "/api/profiles": {
+      "get": {
+        "summary": "Api Profiles",
+        "operationId": "api_profiles_api_profiles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "profiles"
+        ]
+      },
+      "post": {
+        "summary": "Api Profile Save",
+        "operationId": "api_profile_save_api_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_profile_save_api_profiles_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "profiles"
+        ]
+      }
+    },
+    "/api/accounts": {
+      "post": {
+        "summary": "Api Account Save",
+        "operationId": "api_account_save_api_accounts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_account_save_api_accounts_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/home": {
+      "get": {
+        "summary": "Api Home",
+        "description": "Итоги по персонажам и категориям для главной.",
+        "operationId": "api_home_api_home_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "home"
+        ]
+      }
+    },
+    "/api/snapshots": {
+      "get": {
+        "summary": "Api Snapshots",
+        "operationId": "api_snapshots_api_snapshots_get",
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Character Id"
+            }
+          },
+          {
+            "name": "archived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Archived"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "snapshots"
+        ]
+      }
+    },
+    "/api/diff": {
+      "get": {
+        "summary": "Api Diff",
+        "description": "Что изменилось между снимками a (раньше) и b (позже) одного персонажа.",
+        "operationId": "api_diff_api_diff_get",
+        "parameters": [
+          {
+            "name": "a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "A"
+            }
+          },
+          {
+            "name": "b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "B"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "diff"
+        ]
+      }
+    },
+    "/api/snapshots/archive": {
+      "post": {
+        "summary": "Api Snapshots Archive",
+        "description": "Скрыть старые снимки, оставив последние keep (≥1). Данные не удаляются.",
+        "operationId": "api_snapshots_archive_api_snapshots_archive_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_snapshots_archive_api_snapshots_archive_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "snapshots"
+        ]
+      }
+    },
+    "/api/snapshots/{sid}/unarchive": {
+      "post": {
+        "summary": "Api Snapshot Unarchive",
+        "operationId": "api_snapshot_unarchive_api_snapshots__sid__unarchive_post",
+        "parameters": [
+          {
+            "name": "sid",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "snapshots"
+        ]
+      }
+    },
+    "/api/legendary/effects": {
+      "get": {
+        "summary": "Api Legendary Effects",
+        "description": "Подсказки для поиска по звёздам: {звезда: [{en, ru, desc}]}.",
+        "operationId": "api_legendary_effects_api_legendary_effects_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "legendary"
+        ]
+      }
+    },
+    "/api/legendary": {
+      "get": {
+        "summary": "Api Legendary",
+        "operationId": "api_legendary_api_legendary_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "legendary"
+        ]
+      }
+    },
+    "/api/plans": {
+      "get": {
+        "summary": "Api Plans",
+        "operationId": "api_plans_api_plans_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/plans/moves": {
+      "get": {
+        "summary": "Api Plan Moves",
+        "description": "Схемы в инвентаре: изучить, передать (кому) или продать.",
+        "operationId": "api_plan_moves_api_plans_moves_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "plans"
+        ]
+      }
+    },
+    "/api/mule": {
+      "post": {
+        "summary": "Api Mule",
+        "description": "Отметить персонажа складом (ему не предлагаются схемы) — без изменения имени и цвета.",
+        "operationId": "api_mule_api_mule_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_mule_api_mule_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "mule"
+        ]
+      }
+    },
+    "/api/known": {
+      "post": {
+        "summary": "Api Known",
+        "operationId": "api_known_api_known_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_known_api_known_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "known"
+        ]
+      },
+      "get": {
+        "summary": "Api Known List",
+        "description": "Изученные схемы персонажа: {FormID: auto|manual}.",
+        "operationId": "api_known_list_api_known_get",
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "known"
+        ]
+      }
+    },
+    "/api/known/bulk": {
+      "post": {
+        "summary": "Api Known Bulk",
+        "operationId": "api_known_bulk_api_known_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_known_bulk_api_known_bulk_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "known"
+        ]
+      }
+    },
+    "/api/updates/plans": {
+      "get": {
+        "summary": "Api Updates Plans",
+        "description": "Сколько схем и рецептов каждого обновления изучено у персонажа.",
+        "operationId": "api_updates_plans_api_updates_plans_get",
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "updates"
+        ]
+      }
+    },
+    "/api/optimize": {
+      "get": {
+        "summary": "Api Optimize",
+        "operationId": "api_optimize_api_optimize_get",
+        "parameters": [
+          {
+            "name": "scrapbox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Scrapbox"
+            }
+          },
+          {
+            "name": "ammobox",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Ammobox"
+            }
+          },
+          {
+            "name": "heavy",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 10.0,
+              "title": "Heavy"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "default": 1200,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "optimize"
+        ]
+      }
+    },
+    "/api/rolls": {
+      "get": {
+        "summary": "Api Rolls",
+        "description": "Хотелки с числом совпадений и все легендарные предметы с оценкой.",
+        "operationId": "api_rolls_api_rolls_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "rolls"
+        ]
+      },
+      "post": {
+        "summary": "Api Roll Save",
+        "operationId": "api_roll_save_api_rolls_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Data"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "rolls"
+        ]
+      }
+    },
+    "/api/rolls/{want_id}": {
+      "delete": {
+        "summary": "Api Roll Delete",
+        "operationId": "api_roll_delete_api_rolls__want_id__delete",
+        "parameters": [
+          {
+            "name": "want_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Want Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "rolls"
+        ]
+      }
+    },
+    "/api/events": {
+      "get": {
+        "summary": "Api Events",
+        "operationId": "api_events_api_events_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "events"
+        ]
+      },
+      "post": {
+        "summary": "Api Event Add",
+        "operationId": "api_event_add_api_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_event_add_api_events_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/events/{event_id}": {
+      "delete": {
+        "summary": "Api Event Delete",
+        "operationId": "api_event_delete_api_events__event_id__delete",
+        "parameters": [
+          {
+            "name": "event_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Event Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/events/refresh": {
+      "post": {
+        "summary": "Api Events Refresh",
+        "operationId": "api_events_refresh_api_events_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "events"
+        ]
+      }
+    },
+    "/api/today": {
+      "get": {
+        "summary": "Api Today",
+        "operationId": "api_today_api_today_get",
+        "parameters": [
+          {
+            "name": "character_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "today"
+        ]
+      }
+    },
+    "/api/minerva": {
+      "get": {
+        "summary": "Api Minerva",
+        "operationId": "api_minerva_api_minerva_get",
+        "parameters": [
+          {
+            "name": "sale",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Sale"
+            }
+          },
+          {
+            "name": "character_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Character Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "minerva"
+        ]
+      }
+    },
+    "/api/dailyops": {
+      "post": {
+        "summary": "Api Dailyops",
+        "operationId": "api_dailyops_api_dailyops_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_dailyops_api_dailyops_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "dailyops"
+        ]
+      }
+    },
+    "/api/daily": {
+      "get": {
+        "summary": "Api Daily",
+        "operationId": "api_daily_api_daily_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily"
+        ]
+      }
+    },
+    "/api/daily/toggle": {
+      "post": {
+        "summary": "Api Daily Toggle",
+        "operationId": "api_daily_toggle_api_daily_toggle_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_daily_toggle_api_daily_toggle_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily"
+        ]
+      }
+    },
+    "/api/daily/tasks": {
+      "post": {
+        "summary": "Api Daily Task Add",
+        "operationId": "api_daily_task_add_api_daily_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_daily_task_add_api_daily_tasks_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily"
+        ]
+      }
+    },
+    "/api/daily/tasks/{task_id}": {
+      "delete": {
+        "summary": "Api Daily Task Delete",
+        "operationId": "api_daily_task_delete_api_daily_tasks__task_id__delete",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "daily"
+        ]
+      }
+    },
+    "/api/nukes": {
+      "get": {
+        "summary": "Api Nukes",
+        "description": "Коды ракет с NukaCrypt, кэш 10 минут.",
+        "operationId": "api_nukes_api_nukes_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "nukes"
+        ]
+      }
+    },
+    "/api/paths": {
+      "get": {
+        "summary": "Api Paths",
+        "operationId": "api_paths_api_paths_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "paths"
+        ]
+      },
+      "post": {
+        "summary": "Api Paths Save",
+        "description": "Сохранить пути (data/paths.json). Пустое значение — вернуть автоопределение. Папки игры не создаются и не меняются.",
+        "operationId": "api_paths_save_api_paths_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true,
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "paths"
+        ]
+      }
+    },
+    "/api/network": {
+      "get": {
+        "summary": "Api Network",
+        "operationId": "api_network_api_network_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "network"
+        ]
+      },
+      "post": {
+        "summary": "Api Network Save",
+        "description": "Режим доступа: local — только этот компьютер, lan — вся сеть по токену. Адрес меняется после перезапуска serve.",
+        "operationId": "api_network_save_api_network_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "network"
+        ]
+      }
+    },
+    "/api/mods": {
+      "get": {
+        "summary": "Api Mods",
+        "description": "Состояние модов (есть ли их файлы). refresh — заново найти установки игры и подсказать, где лежат недостающие.",
+        "operationId": "api_mods_api_mods_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "mods"
+        ]
+      }
+    },
+    "/api/pick": {
+      "post": {
+        "summary": "Api Pick",
+        "description": "Системное окно выбора папки/файла (kind: dir | file). Только для запросов с этого компьютера: окно открывается на нём.",
+        "operationId": "api_pick_api_pick_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "pick"
+        ]
+      }
+    },
+    "/api/log": {
+      "get": {
+        "summary": "Api Log",
+        "operationId": "api_log_api_log_get",
+        "parameters": [
+          {
+            "name": "lines",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 500,
+              "title": "Lines"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "log"
+        ]
+      },
+      "delete": {
+        "summary": "Api Log Clear",
+        "description": "Очистить журнал: файл усекается на месте — открытые процессы продолжают дописывать в него.",
+        "operationId": "api_log_clear_api_log_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "log"
+        ]
+      }
+    },
+    "/api/log/download": {
+      "get": {
+        "summary": "Api Log Download",
+        "operationId": "api_log_download_api_log_download_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "log"
+        ]
+      }
+    },
+    "/api/iom": {
+      "get": {
+        "summary": "Api Iom",
+        "operationId": "api_iom_api_iom_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "iom"
+        ]
+      }
+    },
+    "/api/iom/validate": {
+      "post": {
+        "summary": "Api Iom Validate",
+        "operationId": "api_iom_validate_api_iom_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_iom_validate_api_iom_validate_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "iom"
+        ]
+      }
+    },
+    "/api/iom/save": {
+      "post": {
+        "summary": "Api Iom Save",
+        "operationId": "api_iom_save_api_iom_save_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_iom_save_api_iom_save_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "iom"
+        ]
+      }
+    },
+    "/api/iom/restore": {
+      "post": {
+        "summary": "Api Iom Restore",
+        "operationId": "api_iom_restore_api_iom_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_iom_restore_api_iom_restore_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "iom"
+        ]
+      }
+    },
+    "/api/doctor": {
+      "get": {
+        "summary": "Api Doctor",
+        "operationId": "api_doctor_api_doctor_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "doctor"
+        ]
+      }
+    },
+    "/api/backup": {
+      "get": {
+        "summary": "Api Backup Download",
+        "description": "Скачать копию базы. Только с этого компьютера: в базе личные данные (инвентарь, персонажи).",
+        "operationId": "api_backup_download_api_backup_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "backup"
+        ]
+      },
+      "post": {
+        "summary": "Api Backup Save",
+        "operationId": "api_backup_save_api_backup_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "backup"
+        ]
+      }
+    },
+    "/api/tasks": {
+      "get": {
+        "summary": "Api Tasks",
+        "operationId": "api_tasks_api_tasks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/tasks/{name}": {
+      "post": {
+        "summary": "Api Task Start",
+        "operationId": "api_task_start_api_tasks__name__post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "tasks"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_api_account_save_api_accounts_post": {
+        "properties": {
+          "account": {
+            "type": "string",
+            "title": "Account"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          }
+        },
+        "type": "object",
+        "required": [
+          "account"
+        ],
+        "title": "Body_api_account_save_api_accounts_post"
+      },
+      "Body_api_daily_task_add_api_daily_tasks_post": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "reset": {
+            "type": "string",
+            "title": "Reset",
+            "default": "daily"
+          },
+          "per_char": {
+            "type": "boolean",
+            "title": "Per Char",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "Body_api_daily_task_add_api_daily_tasks_post"
+      },
+      "Body_api_daily_toggle_api_daily_toggle_post": {
+        "properties": {
+          "task_id": {
+            "type": "integer",
+            "title": "Task Id"
+          },
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id",
+            "default": 0
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "done"
+        ],
+        "title": "Body_api_daily_toggle_api_daily_toggle_post"
+      },
+      "Body_api_dailyops_api_dailyops_post": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "title": "Mode",
+            "default": ""
+          },
+          "location": {
+            "type": "string",
+            "title": "Location",
+            "default": ""
+          },
+          "faction": {
+            "type": "string",
+            "title": "Faction",
+            "default": ""
+          },
+          "mutations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Mutations",
+            "default": []
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "Body_api_dailyops_api_dailyops_post"
+      },
+      "Body_api_display_name_api_display_name_post": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "Body_api_display_name_api_display_name_post"
+      },
+      "Body_api_event_add_api_events_post": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "start": {
+            "type": "string",
+            "title": "Start"
+          },
+          "end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "title",
+          "start"
+        ],
+        "title": "Body_api_event_add_api_events_post"
+      },
+      "Body_api_iom_restore_api_iom_restore_post": {
+        "properties": {
+          "sha1": {
+            "type": "string",
+            "title": "Sha1"
+          },
+          "backup": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backup"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sha1"
+        ],
+        "title": "Body_api_iom_restore_api_iom_restore_post"
+      },
+      "Body_api_iom_save_api_iom_save_post": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          },
+          "sha1": {
+            "type": "string",
+            "title": "Sha1"
+          },
+          "confirm": {
+            "type": "boolean",
+            "title": "Confirm",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "data",
+          "sha1"
+        ],
+        "title": "Body_api_iom_save_api_iom_save_post"
+      },
+      "Body_api_iom_validate_api_iom_validate_post": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Data"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "Body_api_iom_validate_api_iom_validate_post"
+      },
+      "Body_api_known_api_known_post": {
+        "properties": {
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id"
+          },
+          "formid": {
+            "type": "string",
+            "title": "Formid"
+          },
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id",
+          "formid",
+          "known"
+        ],
+        "title": "Body_api_known_api_known_post"
+      },
+      "Body_api_known_bulk_api_known_bulk_post": {
+        "properties": {
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id"
+          },
+          "formids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Formids"
+          },
+          "known": {
+            "type": "boolean",
+            "title": "Known"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id",
+          "formids",
+          "known"
+        ],
+        "title": "Body_api_known_bulk_api_known_bulk_post"
+      },
+      "Body_api_mule_api_mule_post": {
+        "properties": {
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id"
+          },
+          "mule": {
+            "type": "boolean",
+            "title": "Mule"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id",
+          "mule"
+        ],
+        "title": "Body_api_mule_api_mule_post"
+      },
+      "Body_api_profile_save_api_profiles_post": {
+        "properties": {
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "mule": {
+            "type": "boolean",
+            "title": "Mule",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id"
+        ],
+        "title": "Body_api_profile_save_api_profiles_post"
+      },
+      "Body_api_saved_add_api_saved_post": {
+        "properties": {
+          "page": {
+            "type": "string",
+            "title": "Page"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "params": {
+            "type": "string",
+            "title": "Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "page",
+          "name",
+          "params"
+        ],
+        "title": "Body_api_saved_add_api_saved_post"
+      },
+      "Body_api_snapshots_archive_api_snapshots_archive_post": {
+        "properties": {
+          "character_id": {
+            "type": "integer",
+            "title": "Character Id"
+          },
+          "keep": {
+            "type": "integer",
+            "title": "Keep"
+          }
+        },
+        "type": "object",
+        "required": [
+          "character_id",
+          "keep"
+        ],
+        "title": "Body_api_snapshots_archive_api_snapshots_archive_post"
+      },
+      "Body_api_tag_apply_api_tags_apply_post": {
+        "properties": {
+          "tag_id": {
+            "type": "integer",
+            "title": "Tag Id"
+          },
+          "keys": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keys"
+          },
+          "on": {
+            "type": "boolean",
+            "title": "On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag_id",
+          "keys",
+          "on"
+        ],
+        "title": "Body_api_tag_apply_api_tags_apply_post"
+      },
+      "Body_api_tag_save_api_tags_post": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "Body_api_tag_save_api_tags_post"
+      },
+      "Body_api_wishlist_api_wishlist_post": {
+        "properties": {
+          "formid": {
+            "type": "string",
+            "title": "Formid"
+          },
+          "wish": {
+            "type": "boolean",
+            "title": "Wish"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "formid",
+          "wish"
+        ],
+        "title": "Body_api_wishlist_api_wishlist_post"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "token из config.toml / «Настройки → Доступ по сети»"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "accounts"
+    },
+    {
+      "name": "autotags"
+    },
+    {
+      "name": "backup"
+    },
+    {
+      "name": "daily"
+    },
+    {
+      "name": "dailyops"
+    },
+    {
+      "name": "diff"
+    },
+    {
+      "name": "display_name"
+    },
+    {
+      "name": "doctor"
+    },
+    {
+      "name": "events"
+    },
+    {
+      "name": "healthz"
+    },
+    {
+      "name": "home"
+    },
+    {
+      "name": "inventory"
+    },
+    {
+      "name": "iom"
+    },
+    {
+      "name": "item"
+    },
+    {
+      "name": "items"
+    },
+    {
+      "name": "known"
+    },
+    {
+      "name": "legendary"
+    },
+    {
+      "name": "log"
+    },
+    {
+      "name": "minerva"
+    },
+    {
+      "name": "mods"
+    },
+    {
+      "name": "mule"
+    },
+    {
+      "name": "network"
+    },
+    {
+      "name": "nukes"
+    },
+    {
+      "name": "optimize"
+    },
+    {
+      "name": "paths"
+    },
+    {
+      "name": "pick"
+    },
+    {
+      "name": "plans"
+    },
+    {
+      "name": "profiles"
+    },
+    {
+      "name": "rolls"
+    },
+    {
+      "name": "saved"
+    },
+    {
+      "name": "snapshots"
+    },
+    {
+      "name": "tags"
+    },
+    {
+      "name": "tasks"
+    },
+    {
+      "name": "today"
+    },
+    {
+      "name": "updates"
+    },
+    {
+      "name": "wishlist"
+    }
+  ]
+}

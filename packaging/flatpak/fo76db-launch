@@ -1,0 +1,10 @@
+#!/bin/sh
+# Запуск во Flatpak. Без аргументов — окно на Qt (десктоп-версия): закрыли окно — сервер остановлен.
+# Веб-интерфейс в браузере: flatpak run io.github.leanid3.fo76db serve --open
+# Данные — ~/.var/app/io.github.leanid3.fo76db/data/fo76db (XDG_DATA_HOME песочницы), если не задан FO76DB_HOME.
+# Команды: flatpak run io.github.leanid3.fo76db catalog | history | events | watch | import | ...
+if [ $# -eq 0 ]; then
+    [ -t 1 ] || export FO76DB_DESKTOP_LOG=1   # запуск из меню: вывода нет, журнал — data/app.log
+    set -- desktop
+fi
+exec fo76db "$@"

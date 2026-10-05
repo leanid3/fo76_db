@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Каталог — FO76 DB{% endblock %}
+{% block main %}
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Поиск по названию RU/EN, EditorID, FormID (* и ? работают)" data-autofocus>
+  <select id="kind"><option value="">Все предметы (без модификаций и Atom Shop)</option><option value="*">Вообще всё</option>{% for k, v in KIND_RU.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  <select id="update"><option value="">Любое обновление</option>{% for u in updates %}<option>{{ u }}</option>{% endfor %}</select>
+  <select id="atag" title="Автотеги: редкость, сезон добавления, откуда получить. При выбранном теге «Все предметы» включает и Atom Shop"><option value="">Любой автотег</option></select>
+  <label class="chk"><input type="checkbox" id="unused"> вырезанное/служебное</label>
+  <label class="chk"><input type="checkbox" id="obtain"> только крафт или выпадение</label>
+  <label class="chk"><input type="checkbox" id="wish"> вишлист</label>
+  <select id="learned" title="По персонажу, выбранному в шапке">
+    <option value="">Изучено: любое</option><option value="known">изучено</option>
+    <option value="unknown">не изучено</option><option value="plans_unknown">схемы и рецепты: не изучено</option></select>
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const FILTERS = ["q", "kind", "update", "atag", "learned", "unused", "obtain", "wish"];
+(async () => {
+await loadAutoTags();
+document.getElementById("atag").insertAdjacentHTML("beforeend", autoTagOptions());
+readParams(FILTERS);
+const table = new Tabulator("#table", tableOpts("catalog", {
+  ajaxURL: "/api/items", height: "calc(100vh - 170px)", layout: "fitColumns", index: "id",
+  initialSort: [{ column: "added", dir: "desc" }],
+  rowFormatter: row => row.getElement().classList.toggle("unused", row.getData().status !== "ok"),
+  columns: [
+    { title: "★", field: "wish", width: 44, hozAlign: "center", formatter: c => c.getValue() ? "★" : "", headerSort: true },
+    { title: "Название", field: "name_ru", formatter: itemLink, minWidth: 220 },
+    { title: "English", field: "name_en", minWidth: 200 },
+    { title: "Тип", field: "kind", width: 130, formatter: c => RU.kind[c.getValue()] || c.getValue() },
+    { title: "Подтип", field: "subkind", width: 130, formatter: c => RU.subkind[c.getValue()] || c.getValue() || "" },
+    { title: "Вес", field: "weight", width: 70, hozAlign: "right", formatter: c => c.getValue() == null ? "" : +(+c.getValue()).toFixed(2) },
+    { title: "Цена", field: "value", width: 70, hozAlign: "right" },
+    { title: "Автотеги", field: "atags", minWidth: 180, formatter: c => autoTagBadges(c.getValue()),
+      headerTooltip: "Редкость, сезон добавления, откуда получить — считаются автоматически",
+      sorter: (a, b) => (a || []).length - (b || []).length, accessorDownload: v => autoTagLabels(v),
+      tooltip: (e, c) => (c.getValue() || []).filter(t => ATAGS[t]).map(t => ATAGS[t].group_ru + ": " + ATAGS[t].label).join("\n") },
+    { title: "Добавлено", field: "added_update", minWidth: 170, formatter: c => esc(c.getValue() || "") },
+    { title: "Версия", field: "added", width: 100, sorter: (a, b) => (a || "").localeCompare(b || "", undefined, { numeric: true }),
+      formatter: c => { const d = c.getData(); return (d.added || "") + (d.removed ? ` <span class="tag bad" title="исчез в ${d.removed}">✕</span>` : ""); } },
+    knownColumn(),
+    { title: "Получение", field: "craftable", width: 110, headerSort: false,
+      formatter: c => { const d = c.getData(); return (d.craftable ? '<span class="tag">крафт</span>' : "") + (d.in_lvli ? '<span class="tag warn">добыча</span>' : ""); } },
+    { title: "FormID", field: "id", width: 92, cssClass: "muted" },
+  ],
+}));
+function applyFilter() {
+  const m = textMatcher(document.getElementById("q").value, ["name_ru", "name_en", "edid", "id", "tagtext"]);
+  const atag = document.getElementById("atag").value;
+  const kind = document.getElementById("kind").value, upd = document.getElementById("update").value;
+  const learned = document.getElementById("learned").value;
+  const unused = document.getElementById("unused").checked, obtain = document.getElementById("obtain").checked, wish = document.getElementById("wish").checked;
+  table.setFilter(d => (d.tagtext ??= autoTagLabels(d.atags), m(d)) && (!atag || (d.atags || []).includes(atag))
+    && (kind === "*" || (kind ? d.kind === kind : atag || d.kind !== "mod" && d.kind !== "atom")) && (!upd || d.added_update === upd)
+    && (unused || d.status === "ok") && (!obtain || d.craftable || d.in_lvli) && (!wish || d.wish)
+    && (!learned || learnedMatch(learned, d)));
+  writeParams(FILTERS);
+}
+function learnedMatch(f, d) {
+  const s = knownState(d.plans);
+  if (s === null) return false;
+  if (f === "known") return s !== "no";
+  return s === "no" && (f === "unknown" || d.kind === "plan" || d.kind === "recipe");
+}
+const knownReady = loadKnown();
+table.on("dataLoaded", () => knownReady.then(() => { applyFilter(); table.redraw(true); }));
+document.addEventListener("charchange", () => { applyFilter(); table.redraw(true); });
+table.on("dataFiltered", (f, rows) => document.getElementById("count").textContent = rows.length.toLocaleString("ru") + " предметов");
+for (const id of FILTERS) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+const tb = document.querySelector(".toolbar");
+addSavedSearches(tb, p => { readParams(FILTERS, p); applyFilter(); });
+addExport(table, tb, "catalog");
+})();
+</script>
+{% endblock %}

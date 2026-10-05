@@ -1,0 +1,60 @@
+# Сайт документации на GitHub Pages: https://leanid3.github.io/fo76_db/
+# Включить один раз: Settings → Pages → Source: GitHub Actions. Pages бесплатен для публичных репозиториев,
+# для приватного нужен платный план GitHub. Сам fo76db на Pages не запускается: это статический хостинг, а утилите нужен
+# сервер Python и файлы игры. Здесь только документация и ссылки на загрузки.
+# Не настроен
+name: pages
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      [
+        "README.md",
+        "CHANGELOG.md",
+        "CREDITS.md",
+        "LICENSE",
+        "docs/**",
+        "mkdocs.yml",
+        "packaging/pages/**",
+        ".github/workflows/pages.yml",
+      ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Сборка сайта
+        run: |
+          # MkDocs 2.0 несовместим с темой Material — держимся 1.x
+          python -m pip install "mkdocs>=1.6,<2" "mkdocs-material>=9.6,<10"
+          python packaging/pages/prepare.py
+          mkdocs build --strict
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

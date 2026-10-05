@@ -1,0 +1,59 @@
+# Сайт документации (GitHub Pages). Исходники страниц готовит packaging/pages/prepare.py из README.md и docs/.
+# Локально: pip install mkdocs-material && python packaging/pages/prepare.py && mkdocs serve
+site_name: FO76 DB
+site_description: База предметов, инвентаря и событий Fallout 76
+site_url: https://leanid3.github.io/fo76_db/
+repo_url: https://github.com/leanid3/fo76_db
+repo_name: leanid3/fo76_db
+edit_uri: ""
+docs_dir: build/pages-src
+site_dir: build/site
+copyright: FO76 DB — GNU AGPL v3. Не связано с Bethesda Softworks.
+
+theme:
+  name: material
+  language: ru
+  features:
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - content.code.copy
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: green
+      accent: amber
+      toggle: { icon: material/weather-sunny, name: Светлая тема }
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: green
+      accent: amber
+      toggle: { icon: material/weather-night, name: Тёмная тема }
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc: { permalink: true }
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.details
+
+nav:
+  - Главная: index.md
+  - Документация:
+      - Обзор: documentation.md
+      - Инструкция пользователя: manual.md
+      - Карта приложения: app-map.md
+      - Руководство по страницам: user-guide.md
+      - Данные и правила обработки: data.md
+      - Сборка и установка: packaging.md
+      - PWA (ПК и телефон): pwa.md
+      - Редактор правил IOM: iom-editor.md
+      - Устройство: architecture.md
+      - Предложения: proposals.md
+  - Журнал изменений: changelog.md
+  - Благодарности: credits.md
+  - Лицензия: license.md

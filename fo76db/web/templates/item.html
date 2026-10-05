@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% macro iname(fid, fallback) -%}
+  {%- set r = ref.get(fid) -%}
+  {%- if r %}<a href="/item/{{ '%08X' % fid }}">{{ r.name_ru or r.name_en }}</a>{% else %}{{ fallback }}{% endif -%}
+{%- endmacro %}
+{% block title %}{{ item.name_ru or item.name_en }} — FO76 DB{% endblock %}
+{% block main %}
+<a class="back small" href="/">← к списку</a>
+<h1>{{ item.name_ru or item.name_en }} <span class="muted small">{{ item.name_en }}</span></h1>
+<div class="toolbar">
+  <span class="tag">{{ KIND_RU.get(item.kind, item.kind) }}</span>
+  {% if item.subkind %}<span class="tag">{{ SUBKIND_RU.get(item.subkind, item.subkind) }}</span>{% endif %}
+  {% if item.status != 'ok' %}<span class="tag warn" title="EditorID похож на вырезанный или служебный предмет">служебное / вырезанное?</span>{% endif %}
+  {% if stats.craftable %}<span class="tag">крафт</span>{% endif %}
+  {% if stats.in_lvli %}<span class="tag warn">выпадает</span>{% endif %}
+  {% for t in atags %}<a class="tag atag atag-{{ t.group }}" style="--c:{{ t.color }}" title="{{ t.group_ru }} — все такие предметы в каталоге" href="/?atag={{ t.code|urlencode }}">{{ t.label }}</a>{% endfor %}
+  <button id="wish" data-wish="{{ 1 if wished else 0 }}">{{ '★ В вишлисте' if wished else '☆ В вишлист' }}</button>
+  <a href="https://fallout.fandom.com/wiki/Special:Search?query={{ item.name_en|urlencode }}%20Fallout%2076" target="_blank">Fallout Wiki ↗</a>
+  <a href="https://nukaknights.com/en/search.html?q={{ item.name_en|urlencode }}" target="_blank">Nuka Knights ↗</a>
+</div>
+<div class="grid2">
+  <div class="card">
+    <table class="kv">
+      <tr><td>FormID</td><td>{{ '%08X' % item.formid }} <span class="muted">({{ item.sig }})</span></td></tr>
+      <tr><td>EditorID</td><td>{{ item.edid }}</td></tr>
+      {% if item.weight is not none %}<tr><td>Вес</td><td>{{ '%g' % item.weight }}</td></tr>{% endif %}
+      {% if item.value is not none %}<tr><td>Цена</td><td>{{ item.value }}</td></tr>{% endif %}
+      <tr><td>Добавлено</td><td>
+        {% if item.added_version %}{{ item.added_update or '' }} <span class="muted">{{ item.added_version }}, {{ item.added_released or item.added_date }}</span>
+        {% else %}<span class="muted">нет данных</span>{% endif %}</td></tr>
+      {% if item.removed_version %}<tr><td>Исчез</td><td><span class="tag bad">{{ item.removed_version }}</span></td></tr>{% endif %}
+      {% if stats.levels %}<tr><td>Уровни</td><td>{{ stats.levels|map('int')|sort|join(', ') }}</td></tr>{% endif %}
+      {% if stats.effects %}<tr><td>Эффекты</td><td>{{ stats.effects|reject('equalto', '')|unique|join(', ') }}</td></tr>{% endif %}
+      {% if stats.description %}<tr><td>Описание</td><td style="white-space:pre-line">{{ stats.description }}</td></tr>{% endif %}
+      {% if stats.store %}<tr><td>Atom Shop</td><td>{{ stats.store|join(' · ') }}</td></tr>{% endif %}
+    </table>
+    {% if item.keywords %}<details class="small muted" style="margin-top:8px"><summary>Ключевые слова</summary>{{ item.keywords }}</details>{% endif %}
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">У персонажей</h2>
+    {% if owners %}
+    <table class="list"><tr><th>Персонаж</th><th>Где</th><th>Кол-во</th></tr>
+      {% for o in owners %}<tr><td>{{ o.character }} <span class="muted small">{{ o.account }}</span></td><td>{{ 'тайник' if o.container == 'stash' else 'инвентарь' }}</td><td>{{ o.count }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="muted">Нет ни у одного персонажа (по последним снимкам).</p>{% endif %}
+    {% if item.kind in ('plan', 'recipe') %}
+      <h2>Изучено</h2>
+      {% set src = {} %}{% for l in learned_by %}{% set _ = src.update({l.id: l.source}) %}{% endfor %}
+      <table class="list">{% for c in all_chars %}<tr><td>{{ c.name }} <span class="muted small">{{ c.account }}</span></td><td>
+        {% if src.get(c.id) == 'auto' %}<span class="yes" title="схема была в инвентаре с пометкой «изучено»">✔ авто</span>
+        {% else %}<label class="chk"><input type="checkbox" class="learn" data-char="{{ c.id }}" {{ 'checked' if src.get(c.id) }}> изучено</label>{% endif %}
+      </td></tr>{% endfor %}</table>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card obtain"><h2 style="margin-top:0">Как получить</h2>
+  {% set o = obtain %}
+  {% if o.minerva %}
+  <p><b>Минерва</b> (за золото, на 25% дешевле):
+    {% for m in o.minerva %}<span class="tag{{ ' warn' if m.next }}">#{{ m.sale }}{% if m.next %} — {{ m.next[8:10] }}.{{ m.next[5:7] }}{% if m.location %}, {{ m.location }}{% endif %}{% endif %}</span>{% endfor %}
+    <a href="/events" class="small">расписание</a></p>
+  {% endif %}
+  {% for p in o.plans %}
+  <p><b>Крафт</b> по схеме <a href="/item/{{ p.id }}">{{ p.name_ru or p.name_en }}</a><span class="plan-known" data-plans="{{ p.id }}"></span>.
+    {% if p.sources %}Схему можно получить:{% else %}<span class="muted">Откуда схема — в списках не найдено, см. её карточку.</span>{% endif %}</p>
+  {% if p.sources %}<table class="kv small">{% for g in p.sources %}<tr><td>{{ g.title }}</td><td>
+    {% for l in g.labels[:6] %}<span class="tag" title="{{ l.edids|join('\n') }}">{{ l.label }}</span>{% endfor %}
+    {% if g.labels|length > 6 %}<span class="muted">и ещё {{ g.labels|length - 6 }}</span>{% endif %}</td></tr>{% endfor %}
+    {% if p.world %}<tr><td>Лежит в мире</td><td>{% for w in p.world[:8] %}<span class="tag">{{ w.cell }}{% if w.world and w.world != 'Appalachia' %} · {{ w.world }}{% endif %}</span>{% endfor %}</td></tr>{% endif %}
+  </table>{% endif %}
+  {% endfor %}
+  {% if o.sources or o.world %}
+  {% if o.plans %}<p><b>Готовый предмет</b> тоже встречается:</p>{% endif %}
+  <table class="kv">
+    {% for g in o.sources %}<tr><td>{{ g.title }} <span class="muted small">{{ g.lists }}</span></td><td>
+      {% if g.cat == 'other' %}<details class="small"><summary class="muted">служебные списки без понятной категории</summary>
+        {% for l in g.labels %}<span class="tag" title="{{ l.edids|join('\n') }}">{{ l.label }}</span>{% endfor %}</details>
+      {% else %}
+      {% for l in g.labels[:10] %}<span class="tag" title="{{ l.edids|join('\n') }}">{{ l.label }}{% if l.edids|length > 1 %} ×{{ l.edids|length }}{% endif %}</span>{% endfor %}
+      {% if g.labels|length > 10 %}<details class="small"><summary class="muted">и ещё {{ g.labels|length - 10 }}</summary>
+        {% for l in g.labels[10:] %}<span class="tag" title="{{ l.edids|join('\n') }}">{{ l.label }}</span>{% endfor %}</details>{% endif %}
+      {% endif %}
+    </td></tr>{% endfor %}
+    {% if o.world %}<tr><td>Лежит в мире <span class="muted small">{{ o.world|length }}{% if o.world|length >= 40 %}+{% endif %}</span></td><td>
+      {% for w in o.world %}<span class="tag" title="{{ w.n }} шт.">{{ w.cell }}{% if w.world and w.world != 'Appalachia' %} · {{ w.world }}{% endif %}{% if w.n > 1 %} ×{{ w.n }}{% endif %}</span>{% endfor %}
+    </td></tr>{% endif %}
+  </table>
+  <p class="muted small">По спискам добычи из файлов игры: подписи — по внутренним именам списков (наведите на метку, чтобы увидеть их).
+    Число — сколько списков. Шансы и условия здесь не учитываются.</p>
+  {% elif not o.plans and not o.minerva %}
+  <p class="muted">В списках добычи и в мире не встречается. Обычно это награда, которую выдаёт скрипт: квест, ранг сезона, Atom Shop, набор Fallout 1st.</p>
+  {% endif %}
+  <h3 style="margin-bottom:4px">Вики <a href="#" id="wiki-refresh" class="small" title="Перечитать страницы, минуя кэш">⟳</a></h3>
+  <div id="wiki" class="small muted">Загрузка…</div>
+</div>
+
+{% if recipes %}
+<div class="card"><h2 style="margin-top:0">Крафт</h2>
+  {% for r in recipes %}
+  <p>{% if r.plan %}Нужна: {{ iname(r.plan, '%08X' % r.plan) }}{% if ref.get(r.plan) and ref[r.plan].kind in ('plan', 'recipe') %}
+    <span class="plan-known" data-plans="{{ '%08X' % r.plan }}"></span>{% endif %}. {% endif %}Компоненты:
+    {% for c in r.components %}<span class="tag">{{ iname(c.formid, c.name) }} × {{ c.count }}</span>{% endfor %}
+    <span class="muted small">{{ r.edid }}</span></p>
+  {% endfor %}
+</div>
+{% endif %}
+{% if teaches %}
+<div class="card"><h2 style="margin-top:0">Открывает крафт</h2>
+  <ul>{% for r in teaches %}<li>{{ iname(r.product, '%08X' % (r.product or 0)) }}
+    {% for c in r.components %}<span class="tag">{{ iname(c.formid, c.name) }} × {{ c.count }}</span>{% endfor %}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% if stats.scrap %}
+<div class="card"><h2 style="margin-top:0">Разбор</h2>
+  {% for c in stats.scrap %}<span class="tag">{{ iname(c.formid, c.name) }} × {{ c.count }}</span>{% endfor %}
+</div>
+{% endif %}
+{% if same_name %}
+<div class="card"><h2 style="margin-top:0">Другие записи с тем же названием</h2>
+  {% for s in same_name %}<a href="/item/{{ '%08X' % s.formid }}" class="tag {{ 'warn' if s.status != 'ok' }}">{{ '%08X' % s.formid }} {{ s.edid }}</a>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.getElementById("wish").onclick = async e => {
+  const on = e.target.dataset.wish !== "1";
+  await post("/api/wishlist", { formid: "{{ '%08X' % item.formid }}", wish: on });
+  e.target.dataset.wish = on ? "1" : "0"; e.target.textContent = on ? "★ В вишлисте" : "☆ В вишлист";
+};
+for (const el of document.querySelectorAll("input.learn")) el.onchange = () =>
+  post("/api/known", { character_id: +el.dataset.char, formid: "{{ '%08X' % item.formid }}", known: el.checked });
+// Изучена ли схема-требование у персонажа из шапки
+async function showPlanKnown() {
+  await loadKnown();
+  for (const el of document.querySelectorAll(".plan-known")) el.innerHTML = currentChar() ? " " + knownBadge(el.dataset.plans) : "";
+}
+showPlanKnown();
+document.addEventListener("charchange", showPlanKnown);
+// «Как получить» с fallout.wiki: подгружается отдельно, чтобы карточка не ждала сеть
+async function loadWiki(refresh) {
+  const el = document.getElementById("wiki");
+  el.textContent = "Загрузка…"; el.classList.add("muted");
+  try {
+    const w = await api("/api/item/{{ '%08X' % item.formid }}/wiki" + (refresh ? "?refresh=1" : ""));
+    const part = (head, p, empty) => `<div class="wiki-part"><div class="muted">${head}</div>` +
+      (p.html || `<p class="muted">${empty}</p>`) + `<p><a href="${esc(p.url)}" target="_blank">${esc(p.title)} ↗</a></p></div>`;
+    const parts = [];
+    if (w.ru) parts.push(part("Русская вики (fallout.fandom.com/ru)", w.ru, "На странице нет описания и раздела «Местонахождение»."));
+    if (w.title) parts.push(part(`${esc(w.wiki)} (англ.)`, w, "На странице нет раздела о том, где взять предмет."));
+    if (!parts.length) { el.textContent = "Страница не нашлась ни на русской, ни на английской вики (повторная попытка — через сутки или по ⟳)."; return; }
+    el.classList.remove("muted");
+    el.innerHTML = parts.join("");
+  } catch (e) { el.textContent = "Не удалось загрузить: " + e.message; }
+}
+loadWiki(false);
+document.getElementById("wiki-refresh").onclick = e => { e.preventDefault(); loadWiki(true); };
+</script>
+{% endblock %}

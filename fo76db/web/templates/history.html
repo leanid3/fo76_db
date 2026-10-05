@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}История — FO76 DB{% endblock %}
+{% block main %}
+<h1>История выгрузок</h1>
+<p class="muted small">Новый снимок появляется при каждой выгрузке Invent-O-Matic, в которой что-то изменилось.
+Сравнение показывает разницу между двумя снимками одного персонажа.</p>
+<div class="toolbar">
+  <select id="ch">{% for c in chars %}<option value="{{ c.id }}">{{ c.label }}{% if c.account != '?' %} · {{ c.account_label }}{% endif %}</option>{% endfor %}</select>
+  <label class="chk"><input type="checkbox" id="show-archived"> показать архивные</label>
+  <button id="archive" title="Скрыть старые снимки (данные не удаляются)">Архивировать старые…</button>
+</div>
+<div class="card"><table class="list" id="snaps"></table></div>
+<h2>Изменения</h2>
+<div class="toolbar" id="filters">
+  <select id="a"></select> <span class="muted">→</span> <select id="b"></select>
+  <select id="change"><option value="">Все изменения</option><option value="added">появилось</option><option value="removed">пропало</option>
+    <option value="count">изменилось количество</option><option value="moved">переложено</option></select>
+  <input type="search" id="q" placeholder="Поиск">
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const CHANGE = { added: ["появилось", ""], removed: ["пропало", "bad"], count: ["количество", "warn"], moved: ["переложено", "warn"] };
+const when = t => t.slice(0, 16).replace("T", " ");
+const chSel = document.getElementById("ch");
+if (new URLSearchParams(location.search).get("ch")) chSel.value = new URLSearchParams(location.search).get("ch");
+else if (currentChar() && [...chSel.options].some(o => o.value === currentChar())) chSel.value = currentChar();
+const table = new Tabulator("#table", tableOpts("history", {
+  height: "calc(100vh - 420px)", layout: "fitColumns", placeholder: "Нужно два снимка, чтобы сравнить",
+  initialSort: [{ column: "change", dir: "asc" }],
+  columns: [
+    { title: "Изменение", field: "change", width: 120, formatter: c => `<span class="tag ${CHANGE[c.getValue()][1]}">${CHANGE[c.getValue()][0]}</span>`,
+      accessorDownload: v => CHANGE[v][0] },
+    { title: "Название", field: "name", formatter: itemLink, minWidth: 220 },
+    { title: "★", field: "stars", width: 60, formatter: c => stars(c.getValue()) },
+    { title: "Легендарные эффекты", field: "legendary", minWidth: 200 },
+    { title: "Категория", field: "category", width: 110, formatter: c => RU.category[c.getValue()] || c.getValue() },
+    { title: "Было: инв.", field: "a_player", width: 95, hozAlign: "right" },
+    { title: "Было: тайник", field: "a_stash", width: 105, hozAlign: "right" },
+    { title: "Стало: инв.", field: "b_player", width: 100, hozAlign: "right" },
+    { title: "Стало: тайник", field: "b_stash", width: 110, hozAlign: "right" },
+    { title: "Δ", field: "delta", width: 70, hozAlign: "right",
+      formatter: c => { const v = c.getValue(); return v > 0 ? `<span class="yes">+${v}</span>` : v < 0 ? `<span style="color:var(--danger)">${v}</span>` : "0"; } },
+  ],
+}));
+let snaps = [];
+async function loadSnaps() {
+  const ch = chSel.value; if (!ch) return;
+  snaps = await api(`/api/snapshots?character_id=${ch}&archived=${document.getElementById("show-archived").checked}`);
+  document.getElementById("snaps").innerHTML = "<tr><th>Снимок</th><th>Записей</th><th>Инвентарь / тайник</th><th>Вес</th><th>Файл</th><th></th></tr>"
+    + (snaps.map(s => `<tr class="${s.archived ? "muted" : ""}"><td>${when(s.taken_at)}</td><td>${s.rows}</td><td>${s.player} / ${s.stash}</td>
+      <td>${s.weight ?? ""}</td><td class="small muted">${esc(s.source.split("/").slice(-3).join("/"))}</td>
+      <td>${s.archived ? `<button data-un="${s.id}">вернуть</button>` : ""}</td></tr>`).join("") || '<tr><td class="muted">Снимков нет</td></tr>');
+  for (const b of document.querySelectorAll("[data-un]")) b.onclick = async () => { await post(`/api/snapshots/${b.dataset.un}/unarchive`, {}); loadSnaps(); };
+  const opts = snaps.map(s => `<option value="${s.id}">${when(s.taken_at)}${s.archived ? " (архив)" : ""}</option>`).join("");
+  const A = document.getElementById("a"), B = document.getElementById("b");
+  A.innerHTML = B.innerHTML = opts;
+  if (snaps.length > 1) { B.value = snaps[0].id; A.value = snaps[1].id; }
+  loadDiff();
+}
+async function loadDiff() {
+  const a = document.getElementById("a").value, b = document.getElementById("b").value;
+  if (!a || !b || a === b) { table.setData([]); return; }
+  table.setData(await api(`/api/diff?a=${a}&b=${b}`));
+}
+function applyFilter() {
+  const m = textMatcher(document.getElementById("q").value, ["name", "legendary"]), ch = document.getElementById("change").value;
+  table.setFilter(d => m(d) && (!ch || d.change === ch));
+}
+table.on("dataLoaded", applyFilter);
+table.on("dataFiltered", (f, rows) => document.getElementById("count").textContent = rows.length + " изменений");
+chSel.onchange = loadSnaps;
+document.getElementById("show-archived").onchange = loadSnaps;
+document.getElementById("a").onchange = document.getElementById("b").onchange = loadDiff;
+for (const id of ["change", "q"]) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+document.getElementById("archive").onclick = async () => {
+  const keep = await uiPrompt("Сколько последних снимков оставить видимыми?", "5");
+  if (!keep || !(+keep >= 1)) return;
+  const r = await post("/api/snapshots/archive", { character_id: +chSel.value, keep: +keep });
+  toast(`В архив: ${r.archived}`, "ok"); loadSnaps();
+};
+addExport(table, document.getElementById("filters"), "changes");
+table.on("tableBuilt", loadSnaps);
+</script>
+{% endblock %}

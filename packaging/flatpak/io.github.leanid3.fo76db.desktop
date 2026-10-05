@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=FO76 DB
+Comment=База предметов, инвентаря и событий Fallout 76
+Comment[en]=Fallout 76 item, inventory and event database
+Exec=fo76db-launch
+Icon=io.github.leanid3.fo76db
+# окно на Qt; закрыли окно — сервер остановлен. Журнал: ~/.var/app/io.github.leanid3.fo76db/data/fo76db/data/app.log
+Terminal=false
+Categories=Game;Utility;
+Keywords=Fallout;FO76;inventory;stash;

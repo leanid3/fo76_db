@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ru" data-theme="{{ theme }}" data-layout="{{ layout }}">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}FO76 DB{% endblock %}</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="{{ {'vault': '#0b1a10', 'amber': '#1a1206'}.get(theme, '#161d1a') }}">
+<link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="/static/tabulator_midnight.min.css">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/tabulator.min.js"></script>
+<script nonce="{{ csp_nonce }}">window.FO76_RU = {kind: {{ KIND_RU|tojson }}, subkind: {{ SUBKIND_RU|tojson }}, category: {{ CATEGORY_RU|tojson }}, events: {{ EVENT_KINDS|tojson }}};</script>
+<script src="/static/app.js"></script>
+</head>
+<body>
+{% set path = request.url.path %}
+{# разделы: (заголовок, значок, [(адрес, подпись, значок, подсказка)]) — в раскладке Pip-Boy это вкладки и подвкладки, в классической — плоское меню #}
+{% set nav_groups = [
+  ('Главное', '⌂', [('/home', 'Главная', '⌂', ''), ('/events', 'События', '☢', ''), ('/updates', 'Обновления', '⟳', '')]),
+  ('Инвентарь', '🎒', [('/inventory', 'Инвентарь', '🎒', ''), ('/optimize', 'Вес', '⚖', 'Куда уходит вес и что убрать'),
+                       ('/rolls', 'Роллы', '★', 'Нужные роллы легендарок: оценка и уведомления'), ('/iom', 'IOM', '⚙', 'Правила Invent-O-Matic')]),
+  ('База', '▤', [('/', 'Каталог', '▤', ''), ('/plans', 'Схемы', '✎', ''), ('/legendary', 'Легендарные моды', '✦', ''), ('/history', 'История', '⏳', '')]),
+  ('Настройки', '☼', [('/settings', 'Настройки', '☼', 'Профили, теги, стиль, журнал')]),
+] %}
+{% macro nav_on(href) %}{{ 'active' if path == href or (href == '/' and path.startswith('/item')) }}{% endmacro %}
+{% macro nav_status() %}
+  <select id="who" title="Персонаж для отметок «изучено» на всех страницах">
+    <option value="">Персонаж: —</option>
+    {% for c in all_chars %}<option value="{{ c.id }}">{{ c.label }}{% if c.account != '?' %} · {{ c.account_label }}{% endif %}</option>{% endfor %}
+  </select>
+  <span class="nukes" id="nukes" role="status"></span>
+  <span class="tag offline" id="offline" role="status" hidden title="Сервер недоступен: показана последняя сохранённая копия">нет связи</span>
+{% endmacro %}
+<a class="skip" href="#main">К содержимому</a>
+<div class="screen">
+<header>
+  <a class="logo" href="/home">☢ FO76 DB</a>
+  {% if layout == 'pipboy' %}
+  <nav class="tabs-main" aria-label="Вкладки" title="Вкладки: клавиши Q / E">
+    {% for g in nav_groups %}<a href="{{ g[2][0][0] }}" data-i="{{ g[1] }}" class="{{ 'active' if g[2]|selectattr(0, 'equalto', path)|list or (g[0] == 'База' and path.startswith('/item')) }}">{{ g[0] }}</a>{% endfor %}
+  </nav>
+  {% for g in nav_groups if g[2]|length > 1 and (g[2]|selectattr(0, 'equalto', path)|list or (g[0] == 'База' and path.startswith('/item'))) %}
+  <nav class="tabs-sub" aria-label="Разделы" title="Разделы: клавиши A / D">
+    {% for l in g[2] %}<a href="{{ l[0] }}" class="{{ nav_on(l[0]) }}" {% if l[3] %}title="{{ l[3] }}"{% endif %}>{{ l[1] }}</a>{% endfor %}
+  </nav>
+  {% endfor %}
+  {% else %}
+  <nav aria-label="Разделы">
+    {% for g in nav_groups %}{% for l in g[2] %}<a href="{{ l[0] }}" data-i="{{ l[2] }}" class="{{ nav_on(l[0]) }}" {% if l[3] %}title="{{ l[3] }}"{% endif %}>{% if l[0] == '/settings' %}⚙{% else %}{{ l[1] }}{% endif %}</a>{% endfor %}{% endfor %}
+  </nav>
+  {{ nav_status() }}
+  {% endif %}
+</header>
+<main id="main">
+{% for m in mod_warn or [] %}
+<div class="modwarn" role="alert"><b>⚠ Не найден мод «{{ m.name }}».</b> Эта страница показывает данные из его файлов, без мода она будет пустой.
+  Установите мод или проверьте пути: <a href="/settings#mods">Настройки → Моды</a>.</div>
+{% endfor %}
+{% block main %}{% endblock %}</main>
+{% if layout == 'pipboy' %}<div class="statusbar">{{ nav_status() }}<span class="muted small keys">Q/E вкладки · A/D разделы · / поиск</span></div>{% endif %}
+<footer class="muted small" style="padding:8px 20px 20px">
+  Данные: SeventySix.esm (установленная игра), <a href="https://github.com/fwdekker/fo76-dumps" target="_blank" rel="noopener">fo76-dumps</a> {{ meta.get('catalog_release', '') }},
+  история с {{ meta.get('history_first', '—') }}, <a href="https://fallout.fandom.com/wiki/Fallout_76_patches" target="_blank" rel="noopener">Fallout Wiki</a>, коды — <a href="https://nukacrypt.com" target="_blank" rel="noopener">NukaCrypt</a>,
+  события и Минерва — <a href="https://www.falloutbuilds.com/fo76/events/" target="_blank" rel="noopener">falloutbuilds.com</a>, сезоны и Daily Ops — <a href="https://fallout.wiki" target="_blank" rel="noopener">fallout.wiki</a>, «как получить» — <a href="https://fallout.fandom.com/ru" target="_blank" rel="noopener">fandom (рус.)</a>, <a href="https://fallout.fandom.com" target="_blank" rel="noopener">fandom</a> и fallout.wiki.
+  <br><a href="/glossary">Глоссарий терминов</a> · FO76 DB {{ version }} — <a href="https://github.com/leanid3/fo76_db" target="_blank" rel="noopener">исходный код</a> (<a href="https://github.com/leanid3/fo76_db/blob/main/LICENSE" target="_blank" rel="noopener">GNU AGPL v3</a>),
+  <a href="https://github.com/leanid3/fo76_db/blob/main/CREDITS.md" target="_blank" rel="noopener">благодарности</a>. Неофициальная утилита, не связана с Bethesda.
+</footer>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

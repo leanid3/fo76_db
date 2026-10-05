@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.leanid3.fo76db</id>
+  <name>FO76 DB</name>
+  <summary>Fallout 76 item, inventory and event database</summary>
+  <summary xml:lang="ru">База предметов, инвентаря и событий Fallout 76</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <developer id="io.github.leanid3">
+    <name>leanid3</name>
+  </developer>
+  <description>
+    <p>Local web utility for Fallout 76: item catalog with update history, inventory of all characters,
+      legendary rolls, learned plans and events. Reads the installed game and Invent-O-Matic exports.</p>
+    <p xml:lang="ru">Локальная веб-утилита для Fallout 76: каталог предметов с историей обновлений, инвентарь всех персонажей,
+      легендарные роллы, изученные схемы и события. Читает установленную игру и выгрузки Invent-O-Matic.</p>
+  </description>
+  <launchable type="desktop-id">io.github.leanid3.fo76db.desktop</launchable>
+  <url type="homepage">https://github.com/leanid3/fo76_db</url>
+  <url type="help">https://leanid3.github.io/fo76_db/</url>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="2026.10.5" date="2026-10-05"/>
+  </releases>
+</component>

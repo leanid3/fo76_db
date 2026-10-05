@@ -1,0 +1,70 @@
+# Flatpak: пункт меню открывает окно на Qt (десктоп-версия), песочница, обновление пакетом .flatpak. Подробности — docs/packaging.md, раздел «Flatpak».
+# Сборка из корня репозитория:
+#   flatpak-builder --user --force-clean --install-deps-from=flathub --repo=build/flatpak-repo build/flatpak \
+#       packaging/flatpak/io.github.leanid3.fo76db.yml
+#   flatpak build-bundle build/flatpak-repo fo76db-linux-x86_64.flatpak io.github.leanid3.fo76db
+# Зависимости Python ставятся pip из сети во время сборки (build-args --share=network): для своей сборки и GitHub Actions
+# это нормально, для публикации во Flathub так нельзя (там нужны списки пакетов с хешами, flatpak-pip-generator).
+id: io.github.leanid3.fo76db
+runtime: org.freedesktop.Platform
+runtime-version: "25.08"
+sdk: org.freedesktop.Sdk
+command: fo76db-launch
+finish-args:
+  - --share=network                             # веб-интерфейс на 127.0.0.1, загрузка fo76-dumps, вики, событий
+  - --share=ipc                                 # окно Qt (общая память X11)
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri                                # GPU для Qt WebEngine
+  # Chromium внутри Qt WebEngine не может создать собственную песочницу в песочнице Flatpak: она и есть изоляция
+  - --env=QTWEBENGINE_DISABLE_SANDBOX=1
+  - --talk-name=org.freedesktop.Notifications   # уведомления (gdbus)
+  # папка игры в обычных местах Steam — только чтение; другие пути: flatpak override --user --filesystem=<путь>:ro
+  - --filesystem=~/.local/share/Steam/steamapps/common/Fallout76:ro
+  - --filesystem=~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Fallout76:ro
+modules:
+  # 7-Zip (команды catalog и history): официальная сборка для Linux
+  - name: 7zip
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 7zz /app/bin/7zz
+      - install -Dm644 License.txt /app/share/licenses/io.github.leanid3.fo76db/7-Zip-License.txt
+    sources:
+      - type: archive
+        url: https://github.com/ip7z/7zip/releases/download/26.03/7z2603-linux-x64.tar.xz
+        sha256: dc99eff5008f1ab79bd7084c68513701547a808a89502bf4133683535ab3c695
+        strip-components: 0
+        only-arches: [x86_64]
+
+  # Kerberos (libgssapi_krb5): нужна libQt6Network, в среде freedesktop её нет. Лицензия MIT-типа (NOTICE)
+  - name: krb5
+    subdir: src
+    buildsystem: autotools
+    build-options:
+      cflags: -std=gnu17     # код krb5 до C23: `void f();` с GCC 15 означает «без аргументов»
+    config-opts: [--disable-static, --disable-nls, --without-keyutils, --without-system-verto, --without-ldap, --without-tcl]
+    cleanup: [/bin, /sbin, /share/man, /share/examples, /include, "*.la", /lib/pkgconfig]
+    post-install:
+      - install -Dm644 ../NOTICE /app/share/licenses/io.github.leanid3.fo76db/krb5-NOTICE
+    sources:
+      - type: archive
+        url: https://kerberos.org/dist/krb5/1.21/krb5-1.21.3.tar.gz
+        sha256: b7a4cd5ead67fb08b980b21abd150ff7217e85ea320c9ed0c6dadd304840ad35
+
+  - name: fo76db
+    buildsystem: simple
+    build-options:
+      build-args: [--share=network]
+    build-commands:
+      - pip3 install --prefix=/app --no-cache-dir --no-warn-script-location ".[desktop]"
+      - sh packaging/flatpak/trim-qt.sh /app
+      - install -Dm755 packaging/flatpak/fo76db-launch /app/bin/fo76db-launch
+      - install -Dm644 packaging/flatpak/io.github.leanid3.fo76db.desktop /app/share/applications/io.github.leanid3.fo76db.desktop
+      - install -Dm644 packaging/flatpak/io.github.leanid3.fo76db.metainfo.xml /app/share/metainfo/io.github.leanid3.fo76db.metainfo.xml
+      - install -Dm644 packaging/flatpak/io.github.leanid3.fo76db.svg /app/share/icons/hicolor/scalable/apps/io.github.leanid3.fo76db.svg
+      - install -Dm644 LICENSE /app/share/licenses/io.github.leanid3.fo76db/LICENSE
+      - install -Dm644 CREDITS.md /app/share/licenses/io.github.leanid3.fo76db/CREDITS.md
+    sources:
+      - type: dir
+        path: ../..
+        skip: [.git, .venv, data, data-docker, build, dist, .flatpak-builder, config.toml]

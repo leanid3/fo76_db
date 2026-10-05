@@ -1,0 +1,23 @@
+// GitHub Codespaces и VS Code Dev Containers: среда разработки fo76db в браузере.
+// Файлов игры здесь нет, поэтому catalog не работает (нужен SeventySix.esm). Подробности — docs/packaging.md, «Codespaces».
+{
+  "name": "fo76db",
+  "image": "mcr.microsoft.com/devcontainers/python:3.14",
+  "postCreateCommand": "sudo apt-get update && sudo apt-get install -y --no-install-recommends 7zip sqlite3 && python -m venv .venv && .venv/bin/pip install -e '.[build]' && .venv/bin/python -m fo76db --version",
+  "containerEnv": {
+    "FO76DB_GAME_DATA": "${containerWorkspaceFolder}/game-data"
+  },
+  "forwardPorts": [7676],
+  "portsAttributes": {
+    "7676": { "label": "FO76 DB", "onAutoForward": "openBrowser" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-python.python", "charliermarsh.ruff"],
+      "settings": { "python.defaultInterpreterPath": "${containerWorkspaceFolder}/.venv/bin/python" }
+    },
+    "codespaces": {
+      "openFiles": ["docs/packaging.md"]
+    }
+  }
+}

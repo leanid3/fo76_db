@@ -1,0 +1,61 @@
+# Maintainer: leanid3
+# Нативный пакет Arch / CachyOS / Manjaro: десктоп-окно на системном Qt (PySide6 + QtWebEngine) без своей копии Chromium.
+# Сборка из рабочей копии репозитория (не из сети):
+#   cd packaging/arch && makepkg -si
+# Данные (база, кэш, config.toml): ~/.local/share/fo76db. Подробности — docs/packaging.md, раздел «Arch Linux».
+pkgname=fo76db
+pkgver=2026.10.5   # обновляется из fo76db/__init__.py (pkgver() ниже)
+pkgrel=1
+pkgdesc='База предметов, инвентаря и событий Fallout 76: веб-интерфейс и окно на Qt'
+arch=('any')
+url='https://github.com/leanid3/fo76_db'
+license=('AGPL-3.0-or-later')
+depends=(
+  'python'
+  'python-fastapi'
+  'uvicorn'
+  'python-jinja'
+  'python-tzdata'
+  '7zip'              # команды catalog и history (распаковка fo76-dumps)
+  # окно (команда `fo76db desktop`, пункт меню): pywebview поверх Qt WebEngine
+  'python-pywebview'
+  'python-qtpy'
+  'pyside6'
+  'qt6-webengine'     # у pyside6 в Arch это необязательная зависимость
+  'qt6-webchannel'
+)
+makedepends=('python-build' 'python-installer' 'python-setuptools' 'python-wheel')
+_repo="$startdir/../.."
+
+pkgver() {
+  sed -n 's/^__version__ = "\(.*\)"/\1/p' "$_repo/fo76db/__init__.py"
+}
+
+prepare() {
+  # рабочая копия без базы, окружения и артефактов сборки
+  rm -rf "$srcdir/src" && mkdir "$srcdir/src"
+  tar -C "$_repo" -c \
+    --exclude=.git --exclude=.venv --exclude=data --exclude=data-docker --exclude=build --exclude=dist \
+    --exclude=.flatpak-builder --exclude=config.toml --exclude='*.egg-info' --exclude=__pycache__ \
+    --exclude=packaging/arch/src --exclude=packaging/arch/pkg --exclude='packaging/arch/*.pkg.tar*' \
+    . | tar -C "$srcdir/src" -x
+}
+
+build() {
+  cd "$srcdir/src"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "$srcdir/src"
+  python -m installer --destdir="$pkgdir" --prefix=/usr dist/*.whl
+  install -Dm644 packaging/arch/io.github.leanid3.fo76db.desktop \
+    "$pkgdir/usr/share/applications/io.github.leanid3.fo76db.desktop"
+  install -Dm644 fo76db/web/static/icons/icon-512.png \
+    "$pkgdir/usr/share/icons/hicolor/512x512/apps/io.github.leanid3.fo76db.png"
+  install -Dm644 fo76db/web/static/icons/icon.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.leanid3.fo76db.svg"
+  install -Dm644 packaging/flatpak/io.github.leanid3.fo76db.metainfo.xml \
+    "$pkgdir/usr/share/metainfo/io.github.leanid3.fo76db.metainfo.xml"
+  install -Dm644 LICENSE CREDITS.md -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

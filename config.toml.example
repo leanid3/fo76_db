@@ -1,0 +1,34 @@
+# Скопируйте в config.toml и поправьте пути.
+
+# Пути игры определяются автоматически (Steam, Proton, Xbox, Bethesda.net) и меняются в «Настройки → Пути игры»
+# (там хранятся в data/paths.json и перекрывают этот файл). Здесь их можно задать явно; пустое значение — автоопределение.
+# game_data = "C:/Program Files (x86)/Steam/steamapps/common/Fallout76/Data"
+# ini_dir = "~/Documents/My Games/Fallout 76"   # Fallout76Prefs.ini, Fallout76Custom.ini
+# mods_dir = ""                                  # необязательно, пока не используется
+
+# Выгрузки Invent-O-Matic Extractor (мод пишет JSON в itemsmod.ini): несколько файлов и шаблоны glob.
+# {game_data} подставляется из game_data. По умолчанию берутся файлы из папки Data.
+# inventory = ["{game_data}/itemsmod.ini", "{game_data}/itemsmod.json", "/другая/папка/*/itemsmod.ini"]
+# LegendaryMods.ini от Improved Workbench
+# legendary_mods = ["{game_data}/LegendaryMods.ini"]
+
+# Конфиг Invent-O-Matic Stash (страница «IOM»). Бэкапы перед записью — в <backup_root>/_backup_<ГГГГММДД>/
+# По умолчанию: {game_data}/inventOmaticStashConfig.json и data/backups
+# iom_config = ""
+# backup_root = ""
+
+host = "127.0.0.1"
+port = 7676
+
+# Доступ с телефона (PWA) и из сети: токен обязателен, иначе сервер открыт всем в сети. Сгенерировать:
+#   python -c "import secrets; print(secrets.token_urlsafe(24))"
+# Первый вход: https://<адрес>/home?token=<токен> (дальше — cookie). Локальные запросы токен не спрашивают. См. docs/pwa.md
+# token = ""
+# Адреса сторонних браузерных фронтендов (CORS), см. docs/api.md; нужен перезапуск serve
+# cors_origins = ["http://localhost:5173"]
+# HTTPS прямо из сервера (сертификат, которому доверяет телефон: mkcert, tailscale cert); проще — tailscale serve, см. docs/pwa.md
+# ssl_certfile = ""
+# ssl_keyfile = ""
+
+# Десктоп-версия (fo76db desktop): заодно следить за выгрузками, как `watch`
+# desktop_watch = true

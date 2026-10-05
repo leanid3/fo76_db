@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Вес — FO76 DB{% endblock %}
+{% block main %}
+<h1>Вес инвентаря и тайника</h1>
+<p class="muted small">По последней выгрузке Invent-O-Matic. Вес тайника — как его считает игра (без перков на вес). Надетое и квестовое не предлагается.
+Каждой записи даётся один совет; «освободит» — сколько веса уйдёт, если совет выполнить.</p>
+<div class="toolbar">
+  <label class="chk">Лимит тайника <input type="number" id="limit" min="100" step="100" style="width:80px"></label>
+  <label class="chk">Тяжёлая стопка от <input type="number" id="heavy" min="1" step="1" style="width:60px"> кг</label>
+  <label class="chk"><input type="checkbox" id="scrapbox"> есть ящик для хлама (Fallout 1st)</label>
+  <label class="chk"><input type="checkbox" id="ammobox"> есть ящик для патронов (Fallout 1st)</label>
+</div>
+<div id="chars" class="grid4"></div>
+<h2>Что можно убрать</h2>
+<div class="toolbar" id="filters">
+  <input type="search" id="q" placeholder="Название (* и ? работают)">
+  <select id="ch"><option value="">Все персонажи</option>{% for c in all_chars %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}</select>
+  <select id="container"><option value="">Инвентарь и тайник</option><option value="player">Инвентарь</option><option value="stash">Тайник</option></select>
+  <select id="type"><option value="">Все советы</option></select>
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(async () => {
+const SETTINGS = ["limit", "heavy", "scrapbox", "ammobox"], FILTERS = ["q", "ch", "container", "type"];
+const ALL = [...SETTINGS, ...FILTERS];
+readParams(ALL);
+const $ = id => document.getElementById(id);
+if (!$("limit").value) $("limit").value = {{ limit }};
+if (!$("heavy").value) $("heavy").value = 10;
+const TYPE_CLS = { spoiled: "bad", duplicate: "warn", heavy: "warn", unlearned_plan: "", learned_plan: "", junk_scrap: "", scrapbox: "", ammobox: "" };
+const kg = v => v == null ? "" : (+v).toLocaleString("ru", { maximumFractionDigits: 1 });
+let TYPES = {};
+
+const table = new Tabulator("#table", tableOpts("optimize", {
+  height: "calc(100vh - 300px)", layout: "fitColumns", placeholder: "Советов нет",
+  initialSort: [{ column: "saving", dir: "desc" }],
+  columns: [
+    { title: "Совет", field: "type", width: 230, formatter: c => `<span class="tag ${TYPE_CLS[c.getValue()] || ""}">${esc(c.getData().action)}</span>`,
+      accessorDownload: (v, d) => d.action },
+    { title: "Название", field: "name", formatter: itemLink, minWidth: 220 },
+    { title: "★", field: "stars", width: 60, formatter: c => stars(c.getValue()) },
+    { title: "Легендарные эффекты", field: "legendary", minWidth: 160 },
+    { title: "Кол-во", field: "count", width: 80, hozAlign: "right" },
+    { title: "Вес стопки", field: "weight", width: 100, hozAlign: "right", formatter: c => kg(c.getValue()) },
+    { title: "Освободит", field: "saving", width: 100, hozAlign: "right", sorter: "number",
+      formatter: c => c.getValue() == null ? '<span class="muted">?</span>' : `<span class="yes">${kg(c.getValue())}</span>` },
+    { title: "Подробности", field: "note", minWidth: 220, formatter: "textarea" },
+    { title: "Категория", field: "category", width: 110, formatter: c => RU.category[c.getValue()] || c.getValue() },
+    { title: "Персонаж", field: "character", width: 120 },
+    { title: "Где", field: "container", width: 90, formatter: c => c.getValue() === "stash" ? "тайник" : "инвентарь",
+      accessorDownload: v => v === "stash" ? "тайник" : "инвентарь" },
+  ],
+}));
+
+function cards(chars) {
+  const limit = +$("limit").value || 1200;
+  $("chars").innerHTML = chars.map(c => {
+    const pct = Math.min(100, c.stash * 100 / limit), after = Math.max(0, c.stash - c.saving_stash);
+    const col = pct >= 95 ? "var(--danger)" : pct >= 80 ? "var(--accent-2)" : "var(--accent)";
+    const top = c.categories.filter(x => x.stash).slice(0, 5).map(x =>
+      `<tr><td>${esc(RU.category[x.category] || x.category)}</td><td style="text-align:right">${kg(x.stash)}</td></tr>`).join("");
+    return `<div class="card char-card" style="border-left:4px solid ${esc(c.color || c.account_color || "var(--line)")}">
+      <h3><a href="#" data-ch="${c.id}">${esc(c.label)}</a> <span class="muted small">${esc(c.account === "?" ? "" : c.account_label)}</span></h3>
+      <div class="small">Тайник <b>${kg(c.stash)}</b> / ${kg(limit)}</div>
+      <div class="meter"><span style="width:${pct}%;background:${col}"></span><i style="left:${Math.min(100, after * 100 / limit)}%" title="после советов"></i></div>
+      <div class="small muted">можно освободить ${kg(c.saving_stash)} → ${kg(after)}</div>
+      <div class="small" style="margin-top:6px">Инвентарь <b>${kg(c.player)}</b> <span class="muted">· освободить ${kg(c.saving_player)}</span></div>
+      ${top ? `<table class="kv small" style="margin-top:6px"><tr><td colspan="2">Тайник по категориям</td></tr>${top}</table>` : ""}
+    </div>`;
+  }).join("") || '<div class="card muted">Нет выгрузок инвентаря.</div>';
+  for (const a of document.querySelectorAll("[data-ch]")) a.onclick = e => { e.preventDefault(); $("ch").value = a.dataset.ch; applyFilter(); };
+}
+
+async function load() {
+  const p = new URLSearchParams({ limit: $("limit").value || 1200, heavy: $("heavy").value || 10,
+    scrapbox: $("scrapbox").checked, ammobox: $("ammobox").checked });
+  const d = await api("/api/optimize?" + p);
+  TYPES = d.types;
+  const t = $("type"), v = t.value || new URLSearchParams(location.search).get("type") || "";
+  t.innerHTML = '<option value="">Все советы</option>' + Object.entries(TYPES).map(([k, s]) => `<option value="${k}">${esc(s)}</option>`).join("");
+  t.value = v;
+  cards(d.characters);
+  await table.setData(d.advice);
+  applyFilter();
+}
+function applyFilter() {
+  const m = textMatcher($("q").value, ["name", "legendary", "note"]);
+  const ch = $("ch").value, ct = $("container").value, ty = $("type").value;
+  table.setFilter(d => m(d) && (!ch || d.character_id === +ch) && (!ct || d.container === ct) && (!ty || d.type === ty));
+  writeParams(ALL);
+}
+table.on("dataFiltered", (f, rows) => {
+  const s = rows.reduce((a, r) => a + (r.getData().saving || 0), 0);
+  $("count").textContent = `${rows.length} советов · освободит ${kg(s)} кг`;
+});
+for (const id of FILTERS) $(id).addEventListener("input", debounce(applyFilter));
+for (const id of SETTINGS) $(id).addEventListener("change", () => { writeParams(ALL); load(); });
+addSavedSearches($("filters"), p => { readParams(ALL, p); load(); });
+addExport(table, $("filters"), "optimize");
+table.on("tableBuilt", load);
+})();
+</script>
+{% endblock %}

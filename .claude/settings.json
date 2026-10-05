@@ -1,0 +1,26 @@
+{
+  "model": "sonnet",
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(sqlite3 data/fo76.sqlite .schema:*)",
+      "Bash(sqlite3 data/fo76.sqlite SELECT:*)",
+      "Bash(7z l:*)",
+      "Bash(7z t:*)",
+      "Read(/games/fallout76configs/**)"
+    ],
+    "ask": [
+      "Bash(incus stop:*)",
+      "Bash(incus restart:*)",
+      "Bash(incus delete:*)"
+    ],
+    "deny": [
+      "Edit(/games/SteamCommon/**)",
+      "Edit(/games/fallout76configs/modconfig/**)",
+      "Bash(sed -i:*)"
+    ]
+  }
+}

@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Инвентарь — FO76 DB{% endblock %}
+{% block main %}
+<h1>Инвентарь</h1>
+{% if not chars %}
+<div class="card">Данных нет. Включите Extract в Invent-O-Matic Stash, выгрузите инвентарь в игре — он подхватится сам при работе <code>watch</code> или кнопкой «Импорт выгрузок» на <a href="/home">главной</a>. Если мод не находится, проверьте <a href="/settings#mods">Настройки → Моды</a>.</div>
+{% else %}
+<div class="toolbar small muted">
+  {% for c in chars %}<span class="tag">{{ c.account }} / {{ c.name }}{% if c.taken_at %} · {{ c.taken_at[:16].replace('T', ' ') }}{% endif %}</span>{% endfor %}
+</div>
+<div class="toolbar" id="filters">
+  <input type="search" id="q" placeholder="Где лежит? Название, эффект, тег (* и ? работают)" data-autofocus>
+  <select id="ch"><option value="">Все персонажи</option>{% for c in all_chars %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}</select>
+  <select id="container"><option value="">Инвентарь и тайник</option><option value="player">Инвентарь</option><option value="stash">Тайник</option></select>
+  <select id="cat"><option value="">Все категории</option>{% for k, v in CATEGORY_RU.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+  <select id="tag"><option value="">Любые теги</option></select>
+  <select id="roll" title="Оценка легендарок по нужным роллам (страница «Роллы»)"><option value="">Любая оценка</option>
+    <option value="god">Год-ролл</option><option value="partial">Частично</option><option value="scrip">На скрип</option><option value="want">Год-ролл или частично</option></select>
+  <label class="chk"><input type="checkbox" id="leg"> только легендарные</label>
+  <label class="chk"><input type="checkbox" id="unmatched"> не найдены в каталоге</label>
+  <label class="chk"><input type="checkbox" id="group"> группировать по персонажу</label>
+  <span class="counter" id="count"></span>
+</div>
+<div class="toolbar legslots" title="Эффект на нужной звезде: название (Bloodied, Кровожадный) или часть описания. Пустое поле — любая звезда. * и ? работают, варианты через | (Bloodied|Furious)">
+  <span class="small muted">Легендарные эффекты:</span>
+  {% for n in range(1, 5) %}<input type="search" id="s{{ n }}" list="dl{{ n }}" placeholder="{{ '★' * n }} любой"><datalist id="dl{{ n }}"></datalist>{% endfor %}
+  <button id="sclear" title="Очистить поля звёзд">✕</button>
+  <button id="swant" title="Сохранить эти звёзды как нужный ролл: оценка легендарок и уведомление, когда такой предмет появится">★ В нужные роллы</button>
+</div>
+<div class="toolbar">
+  <span class="small muted">Выбранные строки:</span>
+  <select id="tag-apply"><option value="">Поставить тег…</option></select>
+  <select id="tag-remove"><option value="">Снять тег…</option></select>
+  <button id="rename" title="Своё отображаемое имя для выбранного предмета">Переименовать</button>
+  <a href="/settings" class="small">Управление тегами →</a>
+</div>
+<div id="table"></div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+if (document.getElementById("table")) (async () => {
+const FILTERS = ["q", "ch", "container", "cat", "tag", "roll", "leg", "unmatched", "group", "s1", "s2", "s3", "s4"];
+const CHARS = Object.fromEntries({{ all_chars|tojson }}.map(c => [c.id, c]));
+let TAGS = {};
+async function loadTags() {
+  TAGS = Object.fromEntries((await api("/api/tags")).map(t => [t.id, t]));
+  const opts = Object.values(TAGS).map(t => `<option value="${t.id}">${esc((t.icon || "◆") + " " + t.name)}</option>`).join("");
+  for (const [id, first] of [["tag", "Любые теги"], ["tag-apply", "Поставить тег…"], ["tag-remove", "Снять тег…"]]) {
+    const el = document.getElementById(id), v = el.value;
+    el.innerHTML = `<option value="">${first}</option>` + (id === "tag" ? `<optgroup label="Мои теги">${opts}</optgroup>` + autoTagOptions("a:") : opts);
+    el.value = v;
+  }
+}
+function tagBadges(ids) {
+  return (ids || []).map(id => TAGS[id]).filter(Boolean)
+    .map(t => `<span class="tag" style="background:${esc(t.color || "#20302a")}33;color:${esc(t.color || "var(--accent)")}" title="${esc(t.name)}">${esc(t.icon || "◆")} ${esc(t.name)}</span>`).join("");
+}
+await loadAutoTags();
+await loadTags();
+api("/api/legendary/effects").then(eff => {
+  for (const [n, list] of Object.entries(eff))
+    document.getElementById("dl" + n).innerHTML = list.map(e =>
+      `<option value="${esc(e.en)}" label="${esc((e.ru ? e.ru + " — " : "") + e.desc)}"></option>`).join("");
+});
+readParams(FILTERS);
+const table = new Tabulator("#table", tableOpts("inventory", {
+  ajaxURL: "/api/inventory", height: "calc(100vh - 260px)", layout: "fitColumns",
+  initialSort: [{ column: "name", dir: "asc" }],
+  selectableRows: "highlight",
+  rowHeader: { formatter: "rowSelection", titleFormatter: "rowSelection", titleFormatterParams: { rowRange: "active" },
+               headerSort: false, hozAlign: "center", width: 40, resizable: false, cellClick: (e, cell) => cell.getRow().toggleSelect() },
+  columns: [
+    { title: "Название", field: "name", minWidth: 220,
+      formatter: c => { const d = c.getData(), v = esc(d.display || d.name);
+        return (d.id ? `<a href="/item/${d.id}">${v}</a>` : v) + (d.display ? ` <span class="muted small">✎</span>` : ""); },
+      tooltip: (e, c) => c.getData().display ? "В выгрузке: " + c.getData().name : "",
+      accessorDownload: (v, d) => d.display || v },
+    { title: "В каталоге", field: "name_ru", minWidth: 160, formatter: c => esc(c.getValue() || "") },
+    { title: "Теги", field: "tags", minWidth: 110, formatter: c => tagBadges(c.getValue()) + autoTagBadges(c.getData().atags),
+      headerTooltip: "Свои теги и автотеги (редкость, сезон, откуда)",
+      sorter: (a, b) => (a || []).length - (b || []).length,
+      accessorDownload: v => (v || []).map(id => TAGS[id] ? TAGS[id].name : "").join(", ") },
+    { title: "★", field: "stars", width: 70, formatter: c => stars(c.getValue()) },
+    { title: "Ролл", field: "roll", width: 150, formatter: c => rollBadge(c.getValue()),
+      headerTooltip: "Оценка по нужным роллам (страница «Роллы»): год-ролл, частично или на скрип",
+      sorter: (a, b) => ["god", "partial", "scrip"].indexOf(b?.grade) - ["god", "partial", "scrip"].indexOf(a?.grade),
+      accessorDownload: v => rollText(v) },
+    { title: "Легендарные эффекты", field: "legendary", minWidth: 300,
+      formatter: c => { const d = c.getData(); if (!d.slots || !d.slots.length) return esc(c.getValue() || "");
+        return slotsHtml(d.slots, d.roll ? d.roll.hits : []) + (d.leg_extra ? `<div class="legslot muted small" style="white-space:pre-line">${esc(d.leg_extra)}</div>` : ""); },
+      tooltip: (e, c) => c.getValue() || "" },
+    { title: "Кол-во", field: "count", width: 80, hozAlign: "right" },
+    { title: "Вес", field: "weight", width: 70, hozAlign: "right", formatter: c => c.getValue() == null ? "" : +(+c.getValue()).toFixed(2) },
+    { title: "Σ вес", field: "stack_weight", width: 80, hozAlign: "right", mutator: (v, d) => d.weight != null ? +(d.weight * d.count).toFixed(1) : null },
+    { title: "Цена", field: "value", width: 70, hozAlign: "right" },
+    { title: "Ур.", field: "level", width: 60, hozAlign: "right", formatter: c => c.getValue() || "" },
+    knownColumn("plans", {
+      mutator: (v, d) => d.id && (d.kind === "plan" || d.kind === "recipe") ? d.id : null,
+      tooltip: (e, c) => c.getData().learned_by ? "Изучено у: " + c.getData().learned_by : "Ни у кого не отмечено",
+      accessorDownload: v => ({ auto: "да (авто)", manual: "да", no: "нет" })[knownState(v)] || "" }),
+    { title: "Категория", field: "category", width: 120, formatter: c => RU.category[c.getValue()] || c.getValue() },
+    { title: "Персонаж", field: "character", width: 130,
+      formatter: c => { const ch = CHARS[c.getData().character_id] || {}; const col = ch.color || ch.account_color;
+        return (col ? `<span class="dot" style="background:${esc(col)}"></span>` : "") + esc(ch.label || c.getValue()); },
+      accessorDownload: (v, d) => (CHARS[d.character_id] || {}).label || v },
+    { title: "Аккаунт", field: "account", width: 110 },
+    { title: "Где", field: "container", width: 95, formatter: c => c.getValue() === "stash" ? "тайник" : "инвентарь",
+      accessorDownload: v => v === "stash" ? "тайник" : "инвентарь" },
+  ],
+}));
+function applyFilter() {
+  const m = textMatcher(document.getElementById("q").value, ["name", "display", "name_ru", "name_en", "legendary", "slotnames", "tagnames"]);
+  // для каждой заполненной звезды — эффект именно на ней (по названию EN/RU или описанию)
+  const sm = [1, 2, 3, 4].map((n, i) => [i, starMatcher(document.getElementById("s" + n).value)]).filter(([, f]) => f);
+  const roll = document.getElementById("roll").value;
+  const ch = document.getElementById("ch").value, ct = document.getElementById("container").value, cat = document.getElementById("cat").value;
+  const tagv = document.getElementById("tag").value;
+  const leg = document.getElementById("leg").checked, un = document.getElementById("unmatched").checked;
+  table.setFilter(d => {
+    d.tagnames = (d.tags || []).map(id => TAGS[id] ? TAGS[id].name : "").join(" ") + " " + autoTagLabels(d.atags);
+    d.slotnames ??= (d.slots || []).map(s => [s.en, s.ru].filter(Boolean).join(" ")).join(" ");
+    const tagOk = !tagv || (tagv.startsWith("a:") ? (d.atags || []).includes(tagv.slice(2)) : (d.tags || []).includes(+tagv));
+    return m(d) && tagOk && sm.every(([i, f]) => d.slots && d.slots[i] && f(d.slots[i])) && (!ch || d.character_id === +ch) && (!ct || d.container === ct) && (!cat || d.category === cat)
+      && (!leg || d.stars > 0) && (!un || !d.id)
+      && (!roll || (roll === "want" ? d.roll && d.roll.grade !== "scrip" : d.roll && d.roll.grade === roll));
+  });
+  table.setGroupBy(document.getElementById("group").checked ? ["character", "container"] : false);
+  writeParams(FILTERS);
+}
+// Ключи выбранных строк: тег ставится на предмет целиком (у всех персонажей одинаковый ключ)
+function selectedKeys() {
+  const rows = table.getSelectedRows();
+  if (!rows.length) { toast("Отметьте строки галочками слева", "warn"); return null; }
+  return [...new Set(rows.map(r => r.getData().key))];
+}
+async function applyTag(on, el) {
+  const id = +el.value; el.value = "";
+  const keys = id && selectedKeys(); if (!keys) return;
+  await post("/api/tags/apply", { tag_id: id, keys, on });
+  const set = new Set(keys);
+  for (const r of table.getRows()) {
+    const d = r.getData(); if (!set.has(d.key)) continue;
+    const tags = new Set(d.tags || []); on ? tags.add(id) : tags.delete(id);
+    r.update({ tags: [...tags] });
+  }
+  table.deselectRow(); applyFilter();
+}
+document.getElementById("tag-apply").onchange = e => applyTag(true, e.target);
+document.getElementById("tag-remove").onchange = e => applyTag(false, e.target);
+document.getElementById("rename").onclick = async () => {
+  const keys = selectedKeys(); if (!keys) return;
+  if (keys.length > 1) return toast("Переименовать можно только один предмет за раз", "warn");
+  const d = table.getSelectedRows()[0].getData();
+  const name = await uiPrompt(`Отображаемое имя (пусто — как в выгрузке)\nВ выгрузке: ${d.name}`, d.display || "");
+  if (name === null) return;
+  await post("/api/display_name", { key: d.key, name });
+  for (const r of table.getRows()) if (r.getData().key === d.key) r.update({ display: name.trim() || null });
+  table.deselectRow();
+};
+const knownReady = loadKnown();
+table.on("dataLoaded", () => knownReady.then(() => { applyFilter(); table.redraw(true); }));
+document.addEventListener("charchange", () => table.redraw(true));
+table.on("dataFiltered", (f, rows) => {
+  const w = rows.reduce((s, r) => s + (r.getData().stack_weight || 0), 0);
+  document.getElementById("count").textContent = `${rows.length} записей · вес ${w.toFixed(1)}`;
+});
+for (const id of FILTERS) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+document.getElementById("swant").onclick = () => {
+  const u = new URLSearchParams({ new: "1" });
+  for (const n of [1, 2, 3, 4]) { const v = document.getElementById("s" + n).value.trim(); if (v) u.set("s" + n, v); }
+  if (u.size < 2) return toast("Заполните хотя бы одну звезду", "warn");
+  const cat = document.getElementById("cat").value;
+  if (cat === "weapon" || cat === "armor") u.set("scope", cat);
+  location.href = "/rolls?" + u;
+};
+document.getElementById("sclear").onclick = () => { for (const n of [1, 2, 3, 4]) document.getElementById("s" + n).value = ""; applyFilter(); };
+const tb = document.getElementById("filters");
+addSavedSearches(tb, p => { readParams(FILTERS, p); applyFilter(); });
+addExport(table, tb, "inventory");
+})();
+</script>
+{% endblock %}

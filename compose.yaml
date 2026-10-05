@@ -1,0 +1,28 @@
+# FO76 DB: веб-интерфейс и автоимпорт выгрузок. Запуск: docker compose up -d → http://127.0.0.1:7676
+# Первое наполнение базы: docker compose run --rm web catalog && docker compose run --rm web history
+# Пути слева поправьте под себя (или задайте FO76_GAME_DATA / FO76DB_DATA в .env рядом с файлом).
+# Готовый образ вместо сборки: FO76DB_IMAGE=ghcr.io/leanid3/fo76db:latest в .env и docker compose up -d --no-build.
+x-fo76db: &fo76db
+  image: ${FO76DB_IMAGE:-fo76db:latest}
+  build: .
+  user: "${UID:-1000}:${GID:-1000}"
+  restart: unless-stopped
+  volumes:
+    - ${FO76DB_DATA:-./data-docker}:/data # база, кэш, config.toml
+    - ${FO76_GAME_DATA:-/games/SteamCommon/Fallout76/Data}:/game/Data:ro # SeventySix.esm, Localization.ba2, itemsmod.ini
+
+services:
+  web:
+    <<: *fo76db
+    environment:
+      FO76DB_ALLOW_OPEN: "1" # в контейнере сервер слушает 0.0.0.0, наружу порт не проброшен (см. ports)
+    ports:
+      - "localhost:7676:7676" # только локально: в утилите нет авторизации
+
+  watch:
+    <<: *fo76db
+    command: ["watch"]
+    healthcheck:
+      disable: true
+    depends_on:
+      - web

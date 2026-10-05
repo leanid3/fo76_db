@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Обновления — FO76 DB{% endblock %}
+{% block main %}
+<h1>Что добавляли в обновлениях</h1>
+<p class="muted small">По первому появлению FormID в релизах fo76-dumps. Первый доступный релиз — {{ first.version if first else '—' }} ({{ first.date if first else '' }}):
+всё, что было в игре к этому моменту, отнесено к нему. Учитываются только не служебные записи.</p>
+<div class="updates grid2">
+{% for g in groups %}
+  <div class="card" data-update="{{ g.name or '—' }}">
+    <h3><a href="/?update={{ (g.name or '')|urlencode }}">{{ g.name or 'Без названия' }}</a> <span class="muted small">с {{ g.date }}</span></h3>
+    <div>{% for k, n in g.kinds|dictsort(by='value', reverse=true) %}
+      <a class="tag" href="/?update={{ (g.name or '')|urlencode }}&kind={{ k }}">{{ KIND_RU.get(k, k) }}: {{ n }}</a>{% endfor %}</div>
+    <div class="learned small"></div>
+  </div>
+{% else %}
+  <div class="card">История ещё не собрана: <code>python -m fo76db history</code>.</div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+// Схемы обновления, изученные у персонажа из шапки
+async function showLearned() {
+  const ch = currentChar();
+  const stat = ch ? await api("/api/updates/plans?character_id=" + ch) : {};
+  for (const card of document.querySelectorAll(".card[data-update]")) {
+    const el = card.querySelector(".learned"), s = stat[card.dataset.update];
+    if (!s) { el.innerHTML = ""; continue; }
+    const u = encodeURIComponent(card.dataset.update === "—" ? "" : card.dataset.update);
+    el.innerHTML = `Схемы и рецепты: изучено <b class="${s.known === s.total ? "yes" : ""}">${s.known}</b> из ${s.total}`
+      + (s.known < s.total ? ` · <a href="/?update=${u}&kind=*&learned=plans_unknown">не изученные (${s.total - s.known}) →</a>` : "");
+  }
+}
+showLearned();
+document.addEventListener("charchange", showLearned);
+</script>
+{% endblock %}

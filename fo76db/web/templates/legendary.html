@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Легендарные моды — FO76 DB{% endblock %}
+{% block main %}
+<h1>Легендарные моды</h1>
+<p class="muted small">Источник — LegendaryMods.ini от Improved Workbench (мод сохраняет его, когда вы заходите в режим крафта на верстаке модификатора; под именем персонажа — дата данных).
+У персонажей с русским клиентом мод пишет свой перевод названий: часть из них сопоставляется с английскими автоматически, остальные показаны отдельными строками.</p>
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Поиск по названию или описанию" data-autofocus>
+  <select id="stars"><option value="">Все звёзды</option><option>1</option><option>2</option><option>3</option><option>4</option></select>
+  <select id="missing"><option value="">Все</option></select>
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(async () => {
+  const data = await api("/api/legendary");
+  const sel = document.getElementById("missing");
+  for (const ch of data.characters) sel.add(new Option("Не изучено у " + ch.name, "c" + ch.id));
+  data.mods.forEach(m => m.localText = m.local.join(" "));
+  data.mods.forEach(m => m.desc = Object.entries(m.description).map(([k, v]) => (k === "all" ? "" : (k === "weapons" ? "Оружие: " : "Броня: ")) + v).join("\n"));
+  const table = new Tabulator("#table", tableOpts("legendary", {
+    data: data.mods, height: "calc(100vh - 210px)", layout: "fitColumns",
+    columns: [
+      { title: "★", field: "stars", width: 80, formatter: c => stars(c.getValue()) },
+      { title: "Мод", field: "name", width: 220, formatter: c => esc(c.getValue()) + (c.getData().local.length ? `<div class="muted small">${esc(c.getData().local.join(", "))}</div>` : "") },
+      { title: "Эффект", field: "desc", formatter: "textarea", minWidth: 300 },
+      ...data.characters.map(ch => ({ title: ch.name + (ch.taken_at ? `<div class="muted small">${ch.taken_at.slice(8, 10)}.${ch.taken_at.slice(5, 7)}.${ch.taken_at.slice(0, 4)}</div>` : ""),
+        field: "c" + ch.id, width: 110, hozAlign: "center",
+        formatter: c => c.getValue() ? '<span class="yes">✔</span>' : '<span class="no">—</span>' })),
+    ],
+  }));
+  addColumnPicker(table, document.querySelector(".toolbar"));
+  function applyFilter() {
+    const m = textMatcher(document.getElementById("q").value, ["name", "desc", "localText"]);
+    const st = document.getElementById("stars").value, miss = sel.value;
+    table.setFilter(d => m(d) && (!st || d.stars == st) && (!miss || !d[miss]));
+  }
+  table.on("tableBuilt", applyFilter);
+  table.on("dataFiltered", (f, rows) => document.getElementById("count").textContent = rows.length + " модов");
+  for (const id of ["q", "stars", "missing"]) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+})();
+</script>
+{% endblock %}

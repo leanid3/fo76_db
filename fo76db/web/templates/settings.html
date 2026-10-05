@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block title %}Настройки — FO76 DB{% endblock %}
+{% block main %}
+<h1>Оформление</h1>
+<div class="card">
+  <h2 style="margin-top:0">Стиль (цвета и шрифт)</h2>
+  <p class="muted small">Хранится в браузере (cookie), меняется сразу. По умолчанию — «Убежище».</p>
+  <div class="themes" id="themes"></div>
+  <h2>Интерфейс (расположение)</h2>
+  <p class="muted small">Применяется после перезагрузки страницы (делается автоматически). По умолчанию — «Pip-Boy».</p>
+  <div class="themes" id="layouts"></div>
+</div>
+<h1 style="margin-top:22px">Пути игры</h1>
+<div class="card">
+  <p class="muted small">Определяются автоматически: Steam (Windows, Linux, Flatpak), Steam Proton, Xbox / Microsoft Store, Bethesda.net.
+    Пустое поле — автоопределение. «Обзор…» открывает окно выбора папки или файла. Утилита только читает эти папки; исключение — запись конфига IOM из редактора (с бэкапом и подтверждением).
+    Изменения вступают в силу сразу, для слежения за выгрузками перезапустите <code>watch</code>.</p>
+  <h2 style="margin-top:0">Найденные установки</h2>
+  <div id="p-found" class="muted small">Поиск…</div>
+  <div class="toolbar" style="margin:8px 0 14px">
+    <button id="p-refresh" title="Искать установки игры заново">Найти заново</button>
+    <button id="p-load" title="Загрузить пути из JSON-файла">Загрузить JSON…</button>
+    <button id="p-export" title="Сохранить текущие пути в JSON-файл">Скачать JSON</button>
+    <input type="file" id="p-file" accept=".json,application/json" hidden>
+  </div>
+  <table class="list" id="p-table"></table>
+  <div class="toolbar" style="margin-top:10px">
+    <button class="primary" id="p-save">Сохранить пути</button>
+    <span class="small" id="p-msg"></span>
+  </div>
+</div>
+<h1 style="margin-top:22px" id="network">Доступ по сети</h1>
+<div class="card">
+  <p class="muted small">Телефон (PWA) и другие компьютеры подключаются по адресу этого компьютера. Настройка видна и меняется только на самом компьютере.
+    Адрес сервера меняется после перезапуска <code>serve</code>; токен — сразу. PWA на телефоне требует HTTPS (<code>docs/pwa.md</code>).</p>
+  <div class="themes" id="n-mode">
+    <label class="chk"><input type="radio" name="n-m" value="local"> Только этот компьютер <span class="muted small">(127.0.0.1)</span></label>
+    <label class="chk"><input type="radio" name="n-m" value="lan"> Локальная сеть <span class="muted small">(0.0.0.0, вход по токену)</span></label>
+  </div>
+  <div id="n-lan" hidden>
+    <div class="toolbar" style="margin-top:10px">
+      <input id="n-token" readonly style="min-width:300px;font-family:monospace" title="Токен доступа">
+      <button id="n-new" title="Создать новый токен; старые входы перестанут работать">Новый токен</button>
+    </div>
+    <div class="small" id="n-links" style="margin-top:8px"></div>
+  </div>
+  <div class="toolbar" style="margin-top:10px">
+    <button class="primary" id="n-save">Сохранить</button>
+    <span class="small" id="n-msg"></span>
+  </div>
+</div>
+<h1 style="margin-top:22px" id="mods">Моды</h1>
+<div class="card">
+  <p class="muted small">Страницы, которым нужен мод, предупреждают об этом, если его файла нет. Проверка делается по путям выше;
+    после установки мода или смены папки нажмите «Проверить / найти».</p>
+  <table class="list" id="m-table"></table>
+  <div class="toolbar" style="margin-top:10px"><button class="primary" id="m-refresh">Проверить / найти</button><span class="small" id="m-msg"></span></div>
+</div>
+<h1 style="margin-top:22px">Профили и теги</h1>
+<p class="muted small">Имена из выгрузки Invent-O-Matic не меняются и по-прежнему ищутся. Здесь задаются только подписи и цвета для отображения.</p>
+<div class="grid2">
+  <div class="card">
+    <h2 style="margin-top:0">Персонажи</h2>
+    <table class="list" id="chars"></table>
+    <h2>Аккаунты</h2>
+    <table class="list" id="accounts"></table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Теги</h2>
+    <p class="muted small">Тег ставится в «Инвентаре»: выделите строки галочками и выберите тег. Тег держится за название и эффекты предмета, поэтому
+      остаётся после новых выгрузок.</p>
+    <table class="list" id="tags"></table>
+    <div class="toolbar" style="margin-top:10px">
+      <input id="tag-icon" placeholder="◆" maxlength="2" style="width:48px" title="Значок (любой символ)">
+      <input id="tag-name" placeholder="Новый тег, например «на продажу»">
+      <input id="tag-color" type="color" value="#4fd18b">
+      <button class="primary" id="tag-add">Добавить</button>
+    </div>
+  </div>
+</div>
+<h1 style="margin-top:22px">Диагностика и копия базы</h1>
+<div class="card" id="diag-card">
+  <p class="muted small">Проверка окружения: игра, моды, 7-Zip, база, доступ из сети. Ничего не меняет.
+    Копия базы (теги, вишлист, роллы, чек-лист, история инвентаря) собирается через SQLite, а не копированием файла: база работает в режиме WAL.</p>
+  <div class="toolbar">
+    <button id="diag-run">Проверить</button>
+    <a class="btn" href="/api/backup" id="backup-dl" title="Скачать согласованную копию базы (.sqlite). Только с этого компьютера">⭳ Скачать копию базы</a>
+    <button id="backup-save" title="Сохранить копию в папку data/db-backups (хранятся 10 последних)">Сохранить копию в data/</button>
+  </div>
+  <table class="list" id="diag" aria-live="polite"></table>
+</div>
+<h1 style="margin-top:22px">Журнал приложения</h1>
+<div class="card">
+  <div class="toolbar">
+    <input type="search" id="log-q" placeholder="Фильтр по тексту" style="min-width:200px">
+    <label class="chk"><input type="checkbox" id="log-err"> только ошибки и предупреждения</label>
+    <select id="log-n" title="Сколько последних строк показывать">
+      <option value="200">200 строк</option><option value="500" selected>500 строк</option><option value="2000">2000 строк</option>
+    </select>
+    <label class="chk"><input type="checkbox" id="log-auto" checked> обновлять</label>
+    <button id="log-reload">Обновить</button>
+    <a href="/api/log/download" download><button type="button">Скачать</button></a>
+    <button id="log-clear" title="Стереть data/app.log">Очистить</button>
+    <span class="counter small" id="log-info"></span>
+  </div>
+  <pre class="applog" id="log">Загрузка…</pre>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const DEFAULT_COLOR = "#4fd18b";
+function row(cells) { return "<tr>" + cells.map(c => `<td>${c}</td>`).join("") + "</tr>"; }
+async function save(url, body, btn) {
+  try { await post(url, body); btn.textContent = "✔"; setTimeout(() => btn.textContent = "Сохранить", 1200); }
+  catch (e) { toast(e.message, "err"); }
+}
+async function load() {
+  const p = await api("/api/profiles");
+  const chars = document.getElementById("chars");
+  chars.innerHTML = row(["<b>Из выгрузки</b>", "<b>Подпись</b>", "<b>Цвет</b>", "<b>Склад</b>", ""]).replace(/td>/g, "th>")
+    + p.characters.map(c => row([`${esc(c.name)} <span class="muted small">${esc(c.account)}</span>`,
+      `<input data-k="label" value="${esc(c.name === c.label ? "" : c.label)}" placeholder="${esc(c.name)}">`,
+      `<input data-k="color" type="color" value="${esc(c.color || DEFAULT_COLOR)}"> <label class="chk small"><input data-k="nocolor" type="checkbox" ${c.color ? "" : "checked"}> без цвета</label>`,
+      `<label class="chk small" title="Персонаж-склад (мул): схемы ему не предлагаются ни на «Схемах», ни в «Весе»"><input data-k="mule" type="checkbox" ${c.mule ? "checked" : ""}> склад</label>`,
+      `<button data-id="${c.id}">Сохранить</button>`])).join("");
+  for (const b of chars.querySelectorAll("button")) b.onclick = () => {
+    const tr = b.closest("tr"), v = k => tr.querySelector(`[data-k=${k}]`);
+    save("/api/profiles", { character_id: +b.dataset.id, label: v("label").value, color: v("nocolor").checked ? null : v("color").value,
+      mule: v("mule").checked }, b);
+  };
+  const acc = document.getElementById("accounts");
+  acc.innerHTML = p.accounts.map(a => row([esc(a.account),
+    `<input data-k="label" value="${esc(a.label || "")}" placeholder="${esc(a.account)}">`,
+    `<input data-k="color" type="color" value="${esc(a.color || DEFAULT_COLOR)}"> <label class="chk small"><input data-k="nocolor" type="checkbox" ${a.color ? "" : "checked"}> без цвета</label>`,
+    `<button data-acc="${esc(a.account)}">Сохранить</button>`])).join("");
+  for (const b of acc.querySelectorAll("button")) b.onclick = () => {
+    const tr = b.closest("tr"), v = k => tr.querySelector(`[data-k=${k}]`);
+    save("/api/accounts", { account: b.dataset.acc, label: v("label").value, color: v("nocolor").checked ? null : v("color").value }, b);
+  };
+  const tags = await api("/api/tags");
+  const tt = document.getElementById("tags");
+  tt.innerHTML = tags.length ? tags.map(t => row([
+    `<input data-k="icon" value="${esc(t.icon || "")}" maxlength="2" style="width:48px">`,
+    `<input data-k="name" value="${esc(t.name)}">`, `<input data-k="color" type="color" value="${esc(t.color || DEFAULT_COLOR)}">`,
+    `<span class="muted small">${t.used} предм.</span>`,
+    `<button data-id="${t.id}" data-a="save">Сохранить</button> <button data-id="${t.id}" data-a="del" title="Удалить тег">✕</button>`])).join("")
+    : '<tr><td class="muted">Тегов пока нет.</td></tr>';
+  for (const b of tt.querySelectorAll("button")) b.onclick = async () => {
+    const tr = b.closest("tr"), v = k => tr.querySelector(`[data-k=${k}]`).value;
+    if (b.dataset.a === "save") return save("/api/tags", { id: +b.dataset.id, name: v("name"), color: v("color"), icon: v("icon") }, b);
+    if (await uiConfirm(`Удалить тег «${v("name")}»? Он снимется со всех предметов.`, { ok: "Удалить", danger: true })) { await api("/api/tags/" + b.dataset.id, { method: "DELETE" }); load(); }
+  };
+}
+document.getElementById("tag-add").onclick = async () => {
+  const name = document.getElementById("tag-name").value;
+  try {
+    await post("/api/tags", { name, color: document.getElementById("tag-color").value, icon: document.getElementById("tag-icon").value });
+    document.getElementById("tag-name").value = ""; load();
+  } catch (e) { toast(e.message, "err"); }
+};
+load();
+
+// ---------- стиль оформления ----------
+const THEMES = [
+  {id: "vault", name: "☢ Убежище", note: "Зелёный экран Pip-Boy: моноширинный шрифт, свечение, строки развёртки.", sw: ["#050d07", "#0a1810", "#3cff7a", "#ffd24a"]},
+  {id: "amber", name: "☼ Янтарь", note: "Тот же Pip-Boy, но янтарный, как в Fallout 4.", sw: ["#0d0803", "#181006", "#ffb000", "#ffe08a"]},
+  {id: "classic", name: "▤ Классика", note: "Прежний спокойный тёмный вид без эффектов.", sw: ["#0f1412", "#161d1a", "#4fd18b", "#f2b84b"]},
+];
+function showThemes() {
+  const cur = document.documentElement.dataset.theme;
+  document.getElementById("themes").innerHTML = THEMES.map(t => `<button class="theme-opt ${t.id === cur ? "on" : ""}" data-t="${t.id}">
+    <div class="sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join("")}</div><b>${t.name}${t.id === cur ? " ✔" : ""}</b>
+    <span class="muted small">${t.note}</span></button>`).join("");
+}
+document.getElementById("themes").onclick = e => {
+  const t = e.target.closest("[data-t]")?.dataset.t;
+  if (!t) return;
+  document.cookie = `fo76_theme=${t}; path=/; max-age=31536000; SameSite=Lax`;
+  document.documentElement.dataset.theme = t;
+  showThemes();
+};
+showThemes();
+
+const LAYOUTS = [
+  {id: "pipboy", name: "☢ Pip-Boy", note: "Рамка-экран, вкладки сверху (клавиши Q/E), разделы под ними (A/D), строка состояния с персонажем внизу, «/» — поиск.", sw: ["#0a1810", "#3cff7a", "#0a1810", "#1c4a2c"]},
+  {id: "classic", name: "▤ Классический", note: "Плоское меню в одну строку, персонаж справа вверху, страница на всю ширину.", sw: ["#161d1a", "#4fd18b", "#161d1a", "#263330"]},
+];
+function showLayouts() {
+  const cur = document.documentElement.dataset.layout;
+  document.getElementById("layouts").innerHTML = LAYOUTS.map(t => `<button class="theme-opt ${t.id === cur ? "on" : ""}" data-t="${t.id}">
+    <div class="sw">${t.sw.map(c => `<i style="background:${c}"></i>`).join("")}</div><b>${t.name}${t.id === cur ? " ✔" : ""}</b>
+    <span class="muted small">${t.note}</span></button>`).join("");
+}
+document.getElementById("layouts").onclick = e => {
+  const t = e.target.closest("[data-t]")?.dataset.t;
+  if (!t || t === document.documentElement.dataset.layout) return;
+  document.cookie = `fo76_layout=${t}; path=/; max-age=31536000; SameSite=Lax`;
+  location.reload();
+};
+showLayouts();
+
+// ---------- пути игры ----------
+const PATH_FIELDS = [
+  {k: "game_data", dir: true, name: "Файлы игры (Data)", hint: "SeventySix.esm, Localization.ba2, выгрузки модов"},
+  {k: "ini_dir", dir: true, name: "Конфиги (ini)", hint: "Documents/My Games/Fallout 76: Fallout76Prefs.ini, Fallout76Custom.ini"},
+  {k: "iom_config", name: "Конфиг IOM", hint: "inventOmaticStashConfig.json; пусто — в папке Data"},
+  {k: "backup_root", dir: true, name: "Бэкапы конфига", hint: "туда копируется файл перед записью; пусто — data/backups"},
+  {k: "mods_dir", dir: true, name: "Папка модов", hint: "необязательно, пока не используется"},
+];
+const SRC = {env: "переменная окружения", paths: "задано здесь", toml: "config.toml", auto: "автоопределение", default: "по умолчанию"};
+let pathInfo = null;
+function showPaths(info) {
+  pathInfo = info;
+  document.getElementById("p-found").innerHTML = info.candidates.length ? info.candidates.map((c, i) =>
+    `<div style="margin:4px 0"><b>${esc(c.label)}</b> <code>${esc(c.game_data)}</code>${c.ini_dir ? ` · ini: <code>${esc(c.ini_dir)}</code>` : ""}
+     <button data-i="${i}" class="p-use">Использовать</button></div>`).join("")
+    : "Установка не найдена автоматически. Укажите папку Data вручную или импортируйте папку игры.";
+  document.getElementById("p-table").innerHTML = PATH_FIELDS.map(f => {
+    const ok = info.checks[f.k], mark = ok === null ? "" : ok ? '<span class="yes">✔</span>' : '<span class="no" title="не найдено">✖</span>';
+    return `<tr><td><b>${f.name}</b><br><span class="muted small">${f.hint}</span></td>
+      <td><input data-k="${f.k}" value="${esc(info.values[f.k] || "")}" style="width:100%;min-width:260px"></td>
+      <td><button class="p-browse" data-k="${f.k}" data-dir="${f.dir ? 1 : ""}" title="Выбрать в окне файловой системы">Обзор…</button></td>
+      <td>${mark}</td><td class="muted small">${SRC[info.sources[f.k]] || ""}</td></tr>`;
+  }).join("");
+}
+function fillPaths(c) {  // подставить найденную установку в поля (не сохраняя)
+  for (const k of ["game_data", "ini_dir", "iom_config"]) {
+    const el = document.querySelector(`#p-table [data-k=${k}]`);
+    if (el && (c[k] || k !== "iom_config")) el.value = c[k] || "";
+  }
+  document.getElementById("p-msg").textContent = `Подставлено: ${c.label}. Нажмите «Сохранить пути».`;
+}
+async function loadPaths(refresh) { showPaths(await api("/api/paths" + (refresh ? "?refresh=true" : ""))); }
+document.getElementById("p-found").onclick = e => {
+  const i = e.target.closest(".p-use")?.dataset.i;
+  if (i !== undefined) fillPaths(pathInfo.candidates[+i]);
+};
+document.getElementById("p-refresh").onclick = () => loadPaths(true);
+document.getElementById("p-table").onclick = async e => {
+  const b = e.target.closest(".p-browse");
+  if (!b) return;
+  const input = document.querySelector(`#p-table [data-k=${b.dataset.k}]`), msg = document.getElementById("p-msg");
+  try {
+    const r = await post("/api/pick", { kind: b.dataset.dir ? "dir" : "file", start: input.value,
+      title: PATH_FIELDS.find(f => f.k === b.dataset.k).name });
+    if (r.path) { input.value = r.path; msg.textContent = "Путь выбран. Нажмите «Сохранить пути»."; }
+  } catch (err) { msg.textContent = err.message; }
+};
+document.getElementById("p-load").onclick = () => document.getElementById("p-file").click();
+document.getElementById("p-file").onchange = async e => {
+  const msg = document.getElementById("p-msg"), f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("ожидался объект с путями");
+    let n = 0;
+    for (const fl of PATH_FIELDS) if (typeof data[fl.k] === "string") { document.querySelector(`#p-table [data-k=${fl.k}]`).value = data[fl.k]; n++; }
+    msg.textContent = n ? `Загружено путей: ${n}. Нажмите «Сохранить пути».` : "В файле нет известных путей (game_data, ini_dir, iom_config, backup_root, mods_dir).";
+  } catch (err) { msg.textContent = "Не удалось прочитать JSON: " + err.message; }
+};
+document.getElementById("p-export").onclick = () => {
+  const o = {};
+  for (const el of document.querySelectorAll("#p-table [data-k]")) if (el.value) o[el.dataset.k] = el.value;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(o, null, 2)], { type: "application/json" }));
+  a.download = "fo76db-paths.json"; a.click(); URL.revokeObjectURL(a.href);
+};
+document.getElementById("p-save").onclick = async () => {
+  const body = {};
+  for (const el of document.querySelectorAll("#p-table [data-k]")) {
+    // значения, пришедшие из автоопределения и не изменённые, не фиксируем
+    const k = el.dataset.k, same = el.value === (pathInfo.values[k] || "");
+    body[k] = same && ["auto", "default"].includes(pathInfo.sources[k]) ? "" : el.value;
+  }
+  try { showPaths(await post("/api/paths", body)); document.getElementById("p-msg").textContent = "Сохранено ✔"; }
+  catch (e) { document.getElementById("p-msg").textContent = e.message; }
+  loadMods();
+};
+loadPaths();
+
+let netInfo = null;
+function showNet(i) {
+  netInfo = i;
+  document.querySelector(`input[name=n-m][value=${i.mode}]`).checked = true;
+  document.getElementById("n-lan").hidden = i.mode !== "lan";
+  document.getElementById("n-token").value = i.token;
+  document.getElementById("n-links").innerHTML = i.mode !== "lan" ? "" :
+    (i.addresses.length ? i.addresses : ["<адрес>"]).map(a => `<div><code>http://${a}:${i.port}/home?token=${encodeURIComponent(i.token)}</code></div>`).join("") +
+    (i.running_lan ? "" : `<div style="margin-top:6px;color:var(--accent-2)">Сервер сейчас запущен только локально — перезапустите <code>serve</code>.</div>`);
+}
+async function saveNet(extra) {
+  const mode = document.querySelector("input[name=n-m]:checked").value, msg = document.getElementById("n-msg");
+  try { showNet(await post("/api/network", { mode, token: netInfo?.token, ...extra })); msg.textContent = "Сохранено ✔"; }
+  catch (e) { msg.textContent = e.message; }
+}
+document.getElementById("n-mode").onchange = e => { if (e.target.name === "n-m") document.getElementById("n-lan").hidden = e.target.value !== "lan"; };
+document.getElementById("n-save").onclick = () => saveNet({});
+document.getElementById("n-new").onclick = () => saveNet({ new_token: true, mode: "lan" });
+api("/api/network").then(showNet).catch(() => { const h = document.getElementById("network"); h.hidden = h.nextElementSibling.hidden = true; });
+
+// ---------- моды ----------
+const MOD_STATE = {ok: '<span class="yes">✔ найден</span>', empty: '<span class="warn-t">● файл пуст — войдите в игру с модом</span>', missing: '<span class="no">✖ не найден</span>'};
+async function loadMods(refresh) {
+  const msg = document.getElementById("m-msg");
+  try {
+    const list = await api("/api/mods" + (refresh ? "?refresh=true" : ""));
+    document.getElementById("m-table").innerHTML = list.map(m => `<tr><td><b>${esc(m.name)}</b><br><span class="muted small">нужен страницам: ${m.pages.map(esc).join(", ")}</span></td>
+      <td>${MOD_STATE[m.state]}</td><td class="small">${m.files.length ? m.files.map(f => `<code>${esc(f)}</code>`).join("<br>") : ""}
+      ${(m.found_in || []).map(d => `<div>найден в <code>${esc(d)}</code> <button class="m-use" data-d="${esc(d)}">Использовать эту папку</button></div>`).join("")}</td></tr>`).join("");
+    if (refresh) { msg.textContent = list.some(m => m.state === "missing") ? "Часть модов не найдена." : "Проверено ✔"; loadPaths(); }
+  } catch (e) { msg.textContent = e.message; }
+}
+document.getElementById("m-refresh").onclick = () => loadMods(true);
+document.getElementById("m-table").onclick = async e => {
+  const d = e.target.closest(".m-use")?.dataset.d;
+  if (!d) return;
+  try { await post("/api/paths", { game_data: d }); await loadPaths(); loadMods(); document.getElementById("m-msg").textContent = "Папка игры изменена ✔"; }
+  catch (err) { document.getElementById("m-msg").textContent = err.message; }
+};
+loadMods();
+
+// ---------- диагностика и копия базы ----------
+async function runDiag() {
+  const t = document.getElementById("diag");
+  t.innerHTML = '<tr><td class="muted">Проверяю…</td></tr>';
+  try {
+    const rows = await api("/api/doctor");
+    t.innerHTML = rows.map(r => `<tr><td>${r.ok === true ? '<span class="yes" aria-label="хорошо">✔</span>' : r.ok === false ? '<span class="bad-t" aria-label="проблема">✘</span>' : '<span class="warn-t" aria-label="к сведению">!</span>'}</td>
+      <td>${esc(r.name)}</td><td class="small">${esc(r.detail)}${r.hint ? '<br><span class="muted">' + esc(r.hint) + "</span>" : ""}</td></tr>`).join("");
+  } catch (e) { t.innerHTML = ""; toast(e.message, "err"); }
+}
+document.getElementById("diag-run").onclick = e => busy(e.currentTarget, runDiag);
+document.getElementById("backup-save").onclick = e => busy(e.currentTarget, async () => {
+  try { const r = await post("/api/backup", {}); toast("Копия сохранена: " + r.path, "ok", 9000); } catch (err) { toast(err.message, "err"); }
+});
+runDiag();
+
+// ---------- журнал ----------
+const LOG_BAD = /error|ошибк|traceback|exception|warning|предупрежд|critical/i;
+let logTimer = null;
+async function loadLog() {
+  const q = document.getElementById("log-q").value.toLowerCase(), bad = document.getElementById("log-err").checked;
+  try {
+    const d = await api("/api/log?lines=" + document.getElementById("log-n").value);
+    const box = document.getElementById("log"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+    const rows = d.lines.filter(l => (!q || l.toLowerCase().includes(q)) && (!bad || LOG_BAD.test(l)));
+    box.innerHTML = rows.length ? rows.map(l => {
+      const m = l.match(/^(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) (.*)$/s);
+      const cls = /error|ошибк|traceback|exception|critical/i.test(l) ? "err" : LOG_BAD.test(l) ? "warn" : "";
+      return m ? `<span class="ts">${esc(m[1])}</span> <span class="${cls}">${esc(m[2])}</span>` : `<span class="${cls}">${esc(l)}</span>`;
+    }).join("\n") : '<span class="muted">Записей нет.</span>';
+    document.getElementById("log-info").textContent = `${d.path} ·${(d.size / 1024).toFixed(0)} КБ`;
+    if (atEnd) box.scrollTop = box.scrollHeight;
+  } catch (e) { document.getElementById("log").textContent = e.message; }
+  clearTimeout(logTimer);
+  if (document.getElementById("log-auto").checked) logTimer = setTimeout(loadLog, 5000);
+}
+for (const id of ["log-q", "log-err", "log-n", "log-auto"]) document.getElementById(id).oninput = loadLog;
+document.getElementById("log-reload").onclick = loadLog;
+document.getElementById("log-clear").onclick = async () => {
+  if (!await uiConfirm("Стереть журнал приложения?", { ok: "Стереть", danger: true })) return;
+  await api("/api/log", { method: "DELETE" }); loadLog();
+};
+loadLog();
+</script>
+{% endblock %}

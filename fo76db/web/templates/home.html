@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Главная — FO76 DB{% endblock %}
+{% block main %}
+<div id="onboard" class="card" hidden style="border-left:4px solid var(--accent)">
+  <div class="toolbar" style="margin:0 0 6px">
+    <b>Первый запуск — что осталось сделать</b>
+    <button class="small" id="onboard-hide" style="margin-left:auto" title="Показать снова можно, очистив данные сайта">Скрыть</button>
+  </div>
+  <ol id="onboard-steps" class="onboard"></ol>
+</div>
+<div class="toolbar">
+  <h1 style="margin:0 12px 0 0">Все аккаунты</h1>
+  <form action="/inventory" style="display:flex;gap:8px">
+    <input type="search" name="q" placeholder="Где лежит? (* и ? работают)" data-autofocus>
+    <button class="primary">Найти</button>
+  </form>
+  <a href="/settings" class="small" style="margin-left:auto">Имена и цвета профилей →</a>
+</div>
+<div id="chars" class="grid4"></div>
+<h2>По категориям</h2>
+<div class="card"><table class="list" id="cats"></table></div>
+<h2>Данные</h2>
+<div class="card" id="data">
+  <div class="small muted" id="datainfo"></div>
+  <div class="toolbar" id="taskbtns" style="margin-top:8px"></div>
+  <pre id="tasklog" class="small" hidden style="max-height:240px;overflow:auto;white-space:pre-wrap;margin:0"></pre>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+// «Данные»: те же действия, что команды catalog / history / events / import, — в фоне на сервере
+const TASK_LABEL = {catalog: "Каталог", history: "История", events: "События", import: "Импорт выгрузок"};
+let taskTimer = null;
+// Мастер первого запуска: путь к игре → каталог → выгрузка инвентаря → события; пропадает, когда всё сделано
+function renderOnboard(d, tasks) {
+  const box = document.getElementById("onboard");
+  let off = false; try { off = localStorage.getItem("fo76.onboard.off") === "1"; } catch (e) { }
+  const busyTask = Object.values(tasks).some(t => t.status === "running");
+  const btn = (name, text) => `<button class="primary" data-task="${name}" ${busyTask ? "disabled" : ""}>${text}</button>`;
+  const steps = [
+    [d.game_found, "Папка игры", `<code>${esc(d.game_data)}</code> — <span class="no">SeventySix.esm не найден.</span> <a href="/settings">Настройки → Пути игры</a>`],
+    [d.items > 0, "Каталог предметов", "Скачивается готовая выгрузка (~1 мин, нужен 7-Zip). " + btn("catalog", "Заполнить каталог")],
+    [d.snapshots > 0, "Инвентарь", `В игре через Inventory-o-matic сделайте выгрузку (Extract), затем ${btn("import", "Импортировать выгрузки")} <a href="/iom">О настройке IOM →</a>`],
+    [!!d.events_fetched, "События и расписание", btn("events", "Загрузить события")],
+  ];
+  const left = steps.filter(x => !x[0]).length;
+  box.hidden = off || !left;
+  document.getElementById("onboard-steps").innerHTML = steps.map(([ok, name, how]) =>
+    `<li class="${ok ? "done" : ""}"><b>${ok ? "✔" : "○"} ${name}</b>${ok ? "" : `<div class="small">${how}</div>`}</li>`).join("");
+}
+document.getElementById("onboard-hide").addEventListener("click", () => {
+  try { localStorage.setItem("fo76.onboard.off", "1"); } catch (e) { }
+  document.getElementById("onboard").hidden = true;
+});
+document.getElementById("onboard").addEventListener("click", e => {
+  const name = e.target.closest("button[data-task]")?.dataset.task;
+  if (name) document.querySelector(`#taskbtns button[data-task="${name}"]`)?.click();
+});
+async function loadTasks() {
+  const s = await api("/api/tasks");
+  const d = s.data;
+  renderOnboard(d, s.tasks);
+  document.getElementById("datainfo").innerHTML =
+    `Предметов в каталоге: <b>${(+d.items).toLocaleString("ru")}</b>${d.catalog_release ? ` (${esc(d.catalog_release)})` : ""} · ` +
+    `версий в истории: <b>${d.builds}</b> · события обновлены: ${d.events_fetched ? esc(d.events_fetched.slice(0, 16).replace("T", " ")) : "—"}` +
+    `<br>Папка данных: <code>${esc(d.home)}</code> · игра: <code>${esc(d.game_data)}</code> ${d.game_found ? "" : '<span class="no">(SeventySix.esm не найден)</span>'}`;
+  const running = Object.entries(s.tasks).find(([, t]) => t.status === "running");
+  document.getElementById("taskbtns").innerHTML = Object.entries(s.tasks).map(([name, t]) =>
+    `<button data-task="${name}" title="${esc(t.title)}" ${running ? "disabled" : ""}>${TASK_LABEL[name]}` +
+    `${t.status === "running" ? " …" : t.status === "done" ? " ✓" : t.status === "error" ? " ✗" : ""}</button>`).join("");
+  const shown = running || Object.entries(s.tasks).filter(([, t]) => t.finished).sort((a, b) => b[1].finished.localeCompare(a[1].finished))[0];
+  const log = document.getElementById("tasklog");
+  if (shown) {
+    log.hidden = false;
+    log.textContent = `${TASK_LABEL[shown[0]]}: ${shown[1].status === "running" ? "идёт" : shown[1].status === "done" ? "готово" : "ошибка"}\n` + shown[1].log.join("\n");
+    log.scrollTop = log.scrollHeight;
+  }
+  clearTimeout(taskTimer);
+  if (running) taskTimer = setTimeout(loadTasks, 1500);
+}
+document.getElementById("taskbtns").addEventListener("click", async e => {
+  const name = e.target.closest("button[data-task]")?.dataset.task;
+  if (!name) return;
+  if (name === "history" && !await uiConfirm("История в первый раз — около 15 минут и ~1 ГБ загрузок. Запустить?", { ok: "Запустить" })) return;
+  try { await post(`/api/tasks/${name}`); } catch (err) { toast(err.message || String(err), "err"); }
+  loadTasks();
+});
+loadTasks();
+
+(async () => {
+  const d = await api("/api/home");
+  const fmt = n => (+n || 0).toLocaleString("ru");
+  const when = t => t ? t.slice(0, 16).replace("T", " ") : "нет выгрузки";
+  document.getElementById("chars").innerHTML = d.characters.map(c => `
+    <div class="card char-card" style="border-left: 4px solid ${esc(c.color || c.account_color || "var(--line)")}">
+      <h3><a href="/inventory?ch=${c.id}">${esc(c.label)}</a>
+        <span class="muted small">${esc(c.account === "?" ? "" : c.account_label)}</span></h3>
+      <div class="muted small">${when(c.taken_at)}</div>
+      <table class="kv small">
+        <tr><td>Инвентарь</td><td><a href="/inventory?ch=${c.id}&container=player">${fmt(c.player)} записей</a> · ${fmt(c.player_weight)} кг</td></tr>
+        <tr><td>Тайник</td><td><a href="/inventory?ch=${c.id}&container=stash">${fmt(c.stash)} записей</a> · ${fmt(c.stash_weight)} кг</td></tr>
+        <tr><td>Схемы</td><td><a href="/plans?char=${c.id}">изучено ${fmt(c.plans)}</a></td></tr>
+        <tr><td>Лег. моды</td><td><a href="/legendary">изучено ${fmt(c.mods)}</a></td></tr>
+      </table>
+    </div>`).join("");
+  // категория × контейнер
+  const cats = {};
+  for (const r of d.categories) (cats[r.category] ??= {})[r.container] = r;
+  const cell = (cat, ct) => { const r = cats[cat][ct]; return r ? `<a href="/inventory?cat=${cat}&container=${ct}">${fmt(r.count)}</a> <span class="muted small">${fmt(r.weight)} кг</span>` : '<span class="no">—</span>'; };
+  document.getElementById("cats").innerHTML = "<tr><th>Категория</th><th>Инвентарь</th><th>Тайник</th></tr>"
+    + Object.keys(cats).map(k => `<tr><td><a href="/inventory?cat=${k}">${esc(RU.category[k] || k)}</a></td><td>${cell(k, "player")}</td><td>${cell(k, "stash")}</td></tr>`).join("");
+})();
+</script>
+{% endblock %}

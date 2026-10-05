@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Нужные роллы — FO76 DB{% endblock %}
+{% block main %}
+<h1>Нужные роллы</h1>
+<p class="muted small">Хотелка — какие эффекты нужны на каких звёздах. По ним оценивается каждая легендарка в инвентаре всех персонажей:
+<b>год-ролл</b> — совпали все заполненные звёзды, <b>частично</b> — хотя бы одна (остальные эффекты можно заменить в верстаке),
+<b>на скрип</b> — хотелки этого типа есть, но ни одна звезда не совпала. С включённым 🔔 приходит уведомление, когда в новой выгрузке
+появится предмет с полным совпадением. Оценка видна и в «Инвентаре», а легендарки «на скрип» попадают в советы на странице «Вес».</p>
+<div class="grid2">
+  <div class="card">
+    <h2 style="margin-top:0">Хотелки</h2>
+    <table class="list" id="wants"></table>
+    <p class="muted small" id="nowants" hidden>Хотелок пока нет. Заполните форму справа или нажмите «★ В нужные роллы» в «Инвентаре».</p>
+  </div>
+  <div class="card wantform">
+    <h2 style="margin-top:0" id="ftitle">Новая хотелка</h2>
+    <input type="hidden" id="fid">
+    <div class="toolbar">
+      <input id="fname" placeholder="Название, например «Кровожадное автоматическое»" style="flex:1;min-width:220px">
+      <select id="fscope">{% for k, v in SCOPES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    </div>
+    <div class="toolbar legslots" title="Название эффекта (Bloodied, Кровожадный) или часть описания. Пустое — любой эффект. * и ? работают, варианты через |">
+      {% for n in range(1, 5) %}<input type="search" id="f{{ n }}" list="dl{{ n }}" placeholder="{{ '★' * n }} любой"><datalist id="dl{{ n }}"></datalist>{% endfor %}
+    </div>
+    <div class="toolbar">
+      <label class="chk"><input type="checkbox" id="fnotify" checked> 🔔 уведомлять о новых совпадениях</label>
+      <button class="primary" id="fsave">Сохранить</button>
+      <button id="fclear">Очистить</button>
+    </div>
+    <p class="muted small">Варианты через <code>|</code>: <code>Bloodied|Furious</code>. Совпадения, которые уже есть в инвентаре, не уведомляются —
+      только то, что появится после сохранения.</p>
+  </div>
+</div>
+<div class="toolbar" id="filters">
+  <select id="grade"><option value="">Любая оценка</option>{% for k, v in GRADES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
+    <option value="none">Без оценки (нет хотелок этого типа)</option></select>
+  <select id="want"><option value="">Любая хотелка</option></select>
+  <select id="ch"><option value="">Все персонажи</option>{% for c in all_chars %}<option value="{{ c.id }}">{{ c.label }}</option>{% endfor %}</select>
+  <select id="cat"><option value="">Оружие и броня</option><option value="weapon">Оружие</option><option value="armor">Броня</option></select>
+  <label class="chk"><input type="checkbox" id="noeq"> без надетого</label>
+  <span class="counter" id="count"></span>
+</div>
+<div id="table"></div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(async () => {
+const SCOPES = {{ SCOPES|tojson }};
+const CHARS = Object.fromEntries({{ all_chars|tojson }}.map(c => [c.id, c]));
+const FILTERS = ["grade", "want", "ch", "cat", "noeq"];
+let data = await api("/api/rolls");
+
+api("/api/legendary/effects").then(eff => {
+  for (const [n, list] of Object.entries(eff))
+    document.getElementById("dl" + n).innerHTML = list.map(e =>
+      `<option value="${esc(e.en)}" label="${esc((e.ru ? e.ru + " — " : "") + e.desc)}"></option>`).join("");
+});
+
+function fill(w = {}) {
+  document.getElementById("fid").value = w.id || "";
+  document.getElementById("fname").value = w.name || "";
+  document.getElementById("fscope").value = w.scope || "any";
+  for (const n of [1, 2, 3, 4]) document.getElementById("f" + n).value = w["s" + n] || "";
+  document.getElementById("fnotify").checked = w.notify ?? true;
+  document.getElementById("ftitle").textContent = w.id ? "Изменить: " + w.name : "Новая хотелка";
+}
+function renderWants() {
+  const el = document.getElementById("wants");
+  document.getElementById("nowants").hidden = data.wants.length > 0;
+  el.innerHTML = data.wants.length ? "<tr><th>Название</th><th>Тип</th><th>Звёзды</th><th title='Год-ролл / частично'>Есть</th><th></th></tr>" + data.wants.map(w => {
+    const st = [1, 2, 3, 4].filter(n => w["s" + n]).map(n => `${"★".repeat(n)} ${esc(w["s" + n])}`).join("<br>");
+    const inv = new URLSearchParams(); for (const n of [1, 2, 3, 4]) if (w["s" + n]) inv.set("s" + n, w["s" + n]);
+    if (w.scope !== "any") inv.set("cat", w.scope);
+    return `<tr><td>${w.notify ? "🔔 " : ""}<b>${esc(w.name)}</b></td><td>${esc(SCOPES[w.scope])}</td><td class="small">${st}</td>
+      <td><a href="?want=${w.id}&grade=god" title="год-ролл">${w.god}</a> / <a href="?want=${w.id}&grade=partial" title="частично">${w.partial}</a></td>
+      <td style="white-space:nowrap"><button data-edit="${w.id}">✎</button> <button data-del="${w.id}" title="Удалить">✕</button>
+      <a class="small" href="/inventory?${inv}">в инвентаре →</a></td></tr>`;
+  }).join("") : "";
+  for (const b of el.querySelectorAll("[data-edit]")) b.onclick = () => fill(data.wants.find(w => w.id === +b.dataset.edit));
+  for (const b of el.querySelectorAll("[data-del]")) b.onclick = async () => {
+    const w = data.wants.find(w => w.id === +b.dataset.del);
+    if (!await uiConfirm(`Удалить хотелку «${w.name}»?`, { ok: "Удалить", danger: true })) return;
+    await api("/api/rolls/" + w.id, { method: "DELETE" });
+    await reload();
+  };
+  const sel = document.getElementById("want"), v = sel.value || new URLSearchParams(location.search).get("want") || "";
+  sel.innerHTML = '<option value="">Любая хотелка</option>' + data.wants.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join("");
+  sel.value = v;
+}
+async function reload() {
+  data = await api("/api/rolls");
+  renderWants();
+  table.replaceData(data.items);
+}
+document.getElementById("fsave").onclick = async () => {
+  const body = { name: document.getElementById("fname").value, scope: document.getElementById("fscope").value,
+                 notify: document.getElementById("fnotify").checked };
+  const id = document.getElementById("fid").value; if (id) body.id = +id;
+  for (const n of [1, 2, 3, 4]) body["s" + n] = document.getElementById("f" + n).value;
+  try { await post("/api/rolls", body); } catch (e) { return toast(e.message, "err"); }
+  fill();
+  await reload();
+};
+document.getElementById("fclear").onclick = () => fill();
+
+// ?new=1&s1=…&scope=… — из кнопки «★ В нужные роллы» в «Инвентаре»
+const P = new URLSearchParams(location.search);
+if (P.get("new")) {
+  fill({ scope: P.get("scope") || "any", s1: P.get("s1"), s2: P.get("s2"), s3: P.get("s3"), s4: P.get("s4") });
+  document.getElementById("fname").focus();
+}
+renderWants();
+readParams(FILTERS);
+
+const table = new Tabulator("#table", tableOpts("rolls", {
+  data: data.items, height: "calc(100vh - 200px)", layout: "fitColumns",
+  initialSort: [{ column: "roll", dir: "asc" }],
+  columns: [
+    { title: "Оценка", field: "roll", width: 190, formatter: c => rollBadge(c.getValue()),
+      sorter: (a, b) => ["god", "partial", "scrip", undefined].indexOf(a?.grade) - ["god", "partial", "scrip", undefined].indexOf(b?.grade),
+      accessorDownload: v => rollText(v) },
+    { title: "Название", field: "name", minWidth: 200, formatter: c => { const d = c.getData();
+      return (d.id ? `<a href="/item/${d.id}">${esc(d.name)}</a>` : esc(d.name)) + (d.equipped ? ' <span class="tag" title="надето">надето</span>' : ""); } },
+    { title: "★", field: "stars", width: 70, formatter: c => stars(c.getValue()) },
+    { title: "Эффекты", field: "legendary", minWidth: 320,
+      formatter: c => { const d = c.getData();
+        return slotsHtml(d.slots, d.roll ? d.roll.hits : []) + (d.leg_extra ? `<div class="legslot muted small" style="white-space:pre-line">${esc(d.leg_extra)}</div>` : ""); },
+      tooltip: (e, c) => c.getValue() || "" },
+    { title: "Персонаж", field: "character", width: 130,
+      formatter: c => { const ch = CHARS[c.getData().character_id] || {}; const col = ch.color || ch.account_color;
+        return (col ? `<span class="dot" style="background:${esc(col)}"></span>` : "") + esc(ch.label || c.getValue()); },
+      accessorDownload: (v, d) => (CHARS[d.character_id] || {}).label || v },
+    { title: "Где", field: "container", width: 95, formatter: c => c.getValue() === "stash" ? "тайник" : "инвентарь",
+      accessorDownload: v => v === "stash" ? "тайник" : "инвентарь" },
+    { title: "Категория", field: "category", width: 100, formatter: c => RU.category[c.getValue()] || c.getValue() },
+    { title: "Вес", field: "weight", width: 70, hozAlign: "right", formatter: c => c.getValue() == null ? "" : +(+c.getValue()).toFixed(2) },
+  ],
+}));
+function applyFilter() {
+  const g = document.getElementById("grade").value, w = document.getElementById("want").value, ch = document.getElementById("ch").value;
+  const cat = document.getElementById("cat").value, noeq = document.getElementById("noeq").checked;
+  table.setFilter(d => (!g || (g === "none" ? !d.roll : d.roll && d.roll.grade === g)) && (!w || (d.roll && d.roll.want_id === +w))
+    && (!ch || d.character_id === +ch) && (!cat || (cat === "armor" ? d.category === "armor" || d.category === "apparel" : d.category === cat))
+    && (!noeq || !d.equipped));
+  writeParams(FILTERS);
+}
+table.on("tableBuilt", applyFilter);
+table.on("dataFiltered", (f, rows) => {
+  const w = rows.reduce((s, r) => s + (r.getData().weight || 0) * r.getData().count, 0);
+  document.getElementById("count").textContent = `${rows.length} легендарок · вес ${w.toFixed(1)}`;
+});
+for (const id of FILTERS) document.getElementById(id).addEventListener("input", debounce(applyFilter));
+addExport(table, document.getElementById("filters"), "rolls");
+})();
+</script>
+{% endblock %}
