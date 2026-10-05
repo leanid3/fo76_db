@@ -144,7 +144,10 @@ jobs:
             dist/THIRD_PARTY_LICENSES-desktop-${{ runner.os }}.txt
 
   flatpak:
-    runs-on: ubuntu-latest
+    # Самая долгая задача (~9 мин холодной): на pull request (в том числе dependabot) не запускается, .flatpak-файл (≈4 мин сжатия)
+    # собирается только для релиза и вручную; на push в main — сборка без файла, с кэшем ≈3 мин.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
@@ -155,9 +158,12 @@ jobs:
         with:
           bundle: fo76db-linux-x86_64.flatpak   # артефакт: fo76db-linux-x86_64.flatpak-x86_64
           manifest-path: packaging/flatpak/io.github.leanid3.fo76db.yml
-          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/**') }}
+          build-bundle: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+          # Кэш только по манифесту: krb5 и 7-Zip (≈2,5 мин компиляции) пересобираются при смене манифеста, а не при каждой правке
+          # лаунчера или ярлыка; модуль fo76db flatpak-builder всё равно пересобирает сам (≈12 с)
+          cache-key: flatpak-builder-${{ hashFiles('packaging/flatpak/*.yml') }}
           # откуда установщик берёт среду; flathub.org (по умолчанию) бывает недоступен, dl.flathub.org — тот же файл с CDN
-          runtime-repo: https://dl.flathub.org/repo/flathub.flatpakrepo
+          repository-url: https://dl.flathub.org/repo/flathub.flatpakrepo
 
   docker:
     runs-on: ubuntu-latest

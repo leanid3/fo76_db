@@ -240,7 +240,7 @@ Python 3.14, 7-Zip, sqlite3, `.venv` с `pip install -e ".[build]"`, порт 76
 | `wheel` | `python -m build` → wheel и sdist, проверка установки |
 | `binary` | PyInstaller на ubuntu-22.04 и windows-latest; проверка: `--version`, запуск `serve`, `/home` и `/static/app.js` отвечают; `THIRD_PARTY_LICENSES-<система>.txt` |
 | `desktop` | Десктоп-версия: ubuntu-22.04 → `fo76db-desktop-linux-x86_64.tar.gz`, windows-latest → `fo76db-desktop-windows-x86_64.exe`; лицензии `THIRD_PARTY_LICENSES-desktop-<система>.txt` |
-| `flatpak` | Пакет `fo76db-linux-x86_64.flatpak` в контейнере flathub-infra (freedesktop 25.08) |
+| `flatpak` | Контейнер flathub-infra (freedesktop 25.08). Не запускается на pull request. Файл `fo76db-linux-x86_64.flatpak` собирается только на теге `v*` и вручную (сжатие ≈4 мин); на push в `main` — проверочная сборка без файла. Кэш по манифесту: krb5 и 7-Zip не пересобираются (холодная сборка ≈9 мин, с кэшем ≈3 мин, с файлом +4 мин) |
 | `docker` | Сборка образа; на `master`/`main` и тегах `v*` — публикация в `ghcr.io/<владелец>/fo76db` (теги: версия и `latest` на `v*`, имя ветки, `sha-…`). Тот же образ файлом — артефакт `fo76db-docker-image.tar.gz`. Команды `docker pull` — в сводке запуска |
 | `release` | На теге `v*`: GitHub Release с wheel, бинарником, exe, десктоп-версиями, Flatpak, образом Docker файлом, лицензиями сторонних компонентов, `LICENSE` и `CREDITS.md`. Скачиваются только артефакты `fo76db-*` |
 

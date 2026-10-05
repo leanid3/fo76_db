@@ -10,6 +10,7 @@
 - `docs/manual.md` — инструкция пользователя с нуля; `docs/app-map.md` — карта приложения (слои, страницы, источники данных, пути на диске); ссылки из `README.md`, `docs/README.md` и навигации сайта (`mkdocs.yml`, схемы mermaid).
 
 ### Изменено
+- CI, задача `flatpak`: не запускается на pull request (dependabot), `.flatpak`-файл собирается только на теге и вручную (4 из 9 мин — сжатие), кэш по манифесту вместо всей папки `packaging/flatpak`, исправлен параметр `repository-url` (прежний `runtime-repo` действие игнорировало), раннер `ubuntu-24.04`.
 - Версия поднята до `2026.10.5` (`fo76db/__init__.py`, `PKGBUILD`, metainfo Flatpak, `docs/openapi.json`).
 
 ## 2026-10-05
