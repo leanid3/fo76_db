@@ -4,7 +4,7 @@
 #   cd packaging/arch && makepkg -si
 # Данные (база, кэш, config.toml): ~/.local/share/fo76db. Подробности — docs/packaging.md, раздел «Arch Linux».
 pkgname=fo76db
-pkgver=2026.10.5   # обновляется из fo76db/__init__.py (pkgver() ниже)
+pkgver=2026.10.6   # обновляется из fo76db/__init__.py (pkgver() ниже)
 pkgrel=1
 pkgdesc='База предметов, инвентаря и событий Fallout 76: веб-интерфейс и окно на Qt'
 arch=('any')

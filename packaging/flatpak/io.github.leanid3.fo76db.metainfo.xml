@@ -20,6 +20,7 @@
   <url type="help">https://leanid3.github.io/fo76_db/</url>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="2026.10.6" date="2026-10-06"/>
     <release version="2026.10.5" date="2026-10-05"/>
   </releases>
 </component>

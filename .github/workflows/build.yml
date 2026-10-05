@@ -1,6 +1,6 @@
 # Сборка: бинарник Linux, exe Windows, десктоп-версии, пакет Python (wheel), Flatpak и образ Docker.
 # - push в master/main и pull request — сборка и проверка, артефакты в разделе Actions;
-# - тег v* (например v2026.10.5) — то же плюс GitHub Release с файлами и образ в ghcr.io/<владелец>/fo76db;
+# - тег v* (например v2026.10.6) — то же плюс GitHub Release с файлами и образ в ghcr.io/<владелец>/fo76db;
 # - вручную: Actions → build → Run workflow.
 name: build
 
