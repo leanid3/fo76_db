@@ -1,8 +1,23 @@
 version: 2
 updates:
+  # Зависимости приложения (pyproject.toml). Обновления одной группой: один PR в неделю вместо россыпи.
   - package-ecosystem: pip
     directory: /
     schedule: { interval: weekly }
+    labels: [dependencies]
+    groups:
+      python:
+        patterns: ["*"]
+  # Версии действий в workflow
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ["*"]
+  # Базовый образ Python в Dockerfile
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies, packaging]

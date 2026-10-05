@@ -25,7 +25,7 @@ env:
 
 jobs:
   wheel:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -79,7 +79,7 @@ jobs:
         run: |
           ${{ matrix.file }} --version
           ${{ matrix.file }} serve --port 7699 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             curl -sf http://127.0.0.1:7699/home > /dev/null && break
             sleep 1
           done
@@ -166,7 +166,7 @@ jobs:
           repository-url: https://dl.flathub.org/repo/flathub.flatpakrepo
 
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
       contents: read
@@ -195,6 +195,8 @@ jobs:
         with:
           context: .
           push: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
+          sbom: true               # SBOM и provenance хранятся рядом с образом в registry (docker buildx imagetools inspect)
+          provenance: mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -235,10 +237,12 @@ jobs:
   release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [wheel, binary, desktop, flatpak, docker]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: write        # создание релиза
+      id-token: write        # подпись происхождения (Sigstore)
+      attestations: write
     steps:
       - uses: actions/checkout@v4   # LICENSE и CREDITS.md — вложения релиза
       - uses: actions/download-artifact@v4
@@ -248,6 +252,20 @@ jobs:
           # и download-artifact падает на нём («Unable to download and extract artifact»)
           pattern: fo76db-*
           merge-multiple: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: SBOM зависимостей и контрольные суммы
+        run: |
+          python -m pip install cyclonedx-bom
+          cyclonedx-py requirements requirements.lock --of JSON -o artifacts/fo76db-sbom.cdx.json
+          cd artifacts && sha256sum -- * > ../SHA256SUMS && mv ../SHA256SUMS .
+          cat SHA256SUMS
+      # Проверка скачанного файла: gh attestation verify <файл> --repo leanid3/fo76_db
+      - name: Подпись происхождения файлов
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: artifacts/*
       - uses: softprops/action-gh-release@v2
         with:
           files: |

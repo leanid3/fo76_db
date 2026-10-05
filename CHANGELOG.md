@@ -5,6 +5,9 @@
 ## Не выпущено (2026-10-06)
 
 ### Добавлено
+- CI и поставка: CodeQL (`codeql.yml`: Python, JavaScript, workflow; раз в неделю и на PR), `audit.yml` (pip-audit по `requirements.lock`), actionlint в `test.yml`; релиз прикладывает `SHA256SUMS` и SBOM (CycloneDX), подписывает файлы происхождением сборки (`gh attestation verify`), образ Docker — с SBOM и provenance; `.github/release.yml` — группы в заметках релиза; Dependabot: группы обновлений и Docker; все задачи на `ubuntu-24.04`.
+- Правила репозитория (rulesets): `main` — без удаления и force-push, изменения от других через PR с зелёными проверками; теги `v*` — без удаления и перемещения; владелец обходит.
+- `SECURITY.md`: проверка скачанных файлов.
 - Сайт на GitHub Pages: лендинг `packaging/pages/site/` (возможности, скриншоты, таблица загрузок с версией и размерами из GitHub API, быстрый старт) в корне, документация MkDocs — в `/docs/`; включён workflow `pages.yml` (был `pages.yml_back`), раннер `ubuntu-24.04`, кэш pip; `mkdocs.yml`: русские якоря заголовков, `api.md` в навигации, ссылка «О программе».
 
 ## 2026.10.6 (2026-10-06)

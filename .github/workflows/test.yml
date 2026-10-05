@@ -18,7 +18,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -34,3 +34,11 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: ruff check fo76db tests
       - run: pytest -q
+
+  workflows:
+    # Синтаксис и типичные ошибки в .github/workflows (actionlint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.7 -color

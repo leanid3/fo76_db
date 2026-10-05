@@ -246,6 +246,18 @@ Python 3.14, 7-Zip, sqlite3, `.venv` с `pip install -e ".[build]"`, порт 76
 | `release` | На теге `v*`: GitHub Release с wheel, бинарником, exe, десктоп-версиями, Flatpak, образом Docker файлом, лицензиями сторонних компонентов, `LICENSE` и `CREDITS.md`. Скачиваются только артефакты `fo76db-*` |
 
 - Запуск: push в `master`/`main`, pull request, тег `v*`, вручную (Run workflow).
+- **Что ещё проверяется** (отдельные workflow):
+
+  | Workflow | Что делает |
+  |---|---|
+  | `test.yml` | `ruff` и `pytest` на Python 3.12–3.14; задача `workflows` — actionlint по `.github/workflows` |
+  | `codeql.yml` | CodeQL (Python, JavaScript, сами workflow; набор `security-extended`) на push, PR и раз в неделю; результаты — Security → Code scanning |
+  | `audit.yml` | `pip-audit` по `requirements.lock` раз в неделю и при смене зависимостей |
+  | `pages.yml` | Сайт, см. выше |
+
+- **Релиз** (тег `v*`) кроме файлов прикладывает `SHA256SUMS`, `fo76db-sbom.cdx.json` (SBOM зависимостей, CycloneDX) и подписывает все файлы происхождением сборки (Sigstore): `gh attestation verify <файл> --repo leanid3/fo76_db`. Образ Docker хранит SBOM и provenance в registry (`docker buildx imagetools inspect ghcr.io/leanid3/fo76db:latest`). Заметки релиза группируются по меткам PR — `.github/release.yml`.
+- **Dependabot** (`.github/dependabot.yml`): pip, github-actions и Docker, раз в неделю, обновления одной группой на экосистему.
+- **Правила репозитория (rulesets):** ветка `main` — нельзя удалить и перезаписать (force-push), изменения от других — через pull request с зелёными проверками `test (3.12–3.14)` и `wheel`; теги `v*` — нельзя удалить и передвинуть. Владелец (роль Admin) правила обходит. Настройки: Settings → Rules → Rulesets.
 - **Выпуск версии:** поднять `__version__` в `fo76db/__init__.py`, запись в `CHANGELOG.md`, затем `git tag v<версия> && git push --tags`.
 - Репозиторий: `github.com/leanid3/fo76_db` (remote `origin`). Для публикации образа токен `GITHUB_TOKEN` получает права `packages: write`
   внутри workflow, отдельные секреты не нужны.

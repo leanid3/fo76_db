@@ -7,6 +7,17 @@ fo76db — локальная утилита: по умолчанию серве
 Запись путей, конфига IOM, очистка лога и скачивание копии базы доступны только с локального адреса.
 Подробности — `CHANGELOG.md`, раздел «Безопасность».
 
+## Проверка скачанных файлов
+
+Файлы релиза подписаны происхождением сборки (GitHub Artifact Attestations, Sigstore) и перечислены в `SHA256SUMS`:
+
+```sh
+sha256sum -c SHA256SUMS --ignore-missing
+gh attestation verify fo76db-linux-x86_64 --repo leanid3/fo76_db
+```
+
+К релизу приложен SBOM зависимостей (`fo76db-sbom.cdx.json`, CycloneDX). Код проверяется CodeQL, зависимости — `pip-audit` и Dependabot.
+
 ## Сообщить об уязвимости
 
 Откройте приватное уведомление на GitHub (Security → Report a vulnerability) или напишите владельцу репозитория.

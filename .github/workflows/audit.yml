@@ -1,0 +1,26 @@
+# Уязвимости в зависимостях: pip-audit по requirements.lock (то, что ставят Docker и Flatpak) и по pyproject.toml.
+# Раз в неделю и при изменении зависимостей; на каждый push не запускается, чтобы чужая уязвимость не ломала несвязанные PR.
+name: audit
+
+on:
+  schedule:
+    - cron: "43 5 * * 1"
+  pull_request:
+    paths: [pyproject.toml, requirements.lock, .github/workflows/audit.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pip-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: python -m pip install pip-audit
+      - name: Зависимости из lock-файла
+        run: pip-audit --requirement requirements.lock --require-hashes --disable-pip

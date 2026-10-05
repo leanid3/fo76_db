@@ -1,0 +1,18 @@
+# Группы в автоматических заметках GitHub Release (generate_release_notes в build.yml): по меткам pull request.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+    authors: [dependabot, github-actions]
+  categories:
+    - title: Новое
+      labels: [feature, enhancement]
+    - title: Исправления
+      labels: [bug, fix]
+    - title: Безопасность
+      labels: [security]
+    - title: Сборка и CI
+      labels: [ci, packaging, dependencies]
+    - title: Документация
+      labels: [documentation]
+    - title: Прочее
+      labels: ["*"]
