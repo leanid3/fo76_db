@@ -36,7 +36,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
-      slugify: !!python/name:pymdownx.slugs.uslugify   # русские заголовки: якоря вида #лицензия
+      slugify: !!python/object/apply:pymdownx.slugs.slugify { kwds: { case: lower } }   # русские заголовки: якоря вида #лицензия
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
