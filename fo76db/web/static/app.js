@@ -400,6 +400,22 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+// Баннер «вышла новая версия»: /api/update спрашивает GitHub не чаще раза в 6 часов; «Скрыть» запоминает версию на сервере
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const u = await api("/api/update");
+    if (!u.available) return;
+    const main = document.getElementById("main"); if (!main) return;
+    const b = document.createElement("div"); b.className = "modwarn updnote"; b.setAttribute("role", "status");
+    const t = document.createElement("span");
+    t.append(Object.assign(document.createElement("b"), { textContent: `Вышла новая версия ${u.latest.tag}` }), ` (у вас ${u.current}). `);
+    const a = Object.assign(document.createElement("a"), { href: u.latest.url, target: "_blank", rel: "noopener", textContent: "Что нового и где скачать" });
+    const x = Object.assign(document.createElement("button"), { type: "button", textContent: "Скрыть", title: "Не напоминать об этой версии" });
+    x.onclick = async () => { try { await post("/api/update/dismiss", { tag: u.latest.tag }); } catch (e) { /* не с этого компьютера: скроем до перезагрузки */ } b.remove(); };
+    b.append(t, a, " ", x); main.prepend(b);
+  } catch (e) { /* сервер недоступен или нет связи — баннера просто нет */ }
+});
+
 // «← к списку» на карточке предмета: вернуться туда, откуда пришли (с теми же фильтрами), иначе — в каталог
 document.addEventListener("click", e => {
   const a = e.target.closest("a.back");

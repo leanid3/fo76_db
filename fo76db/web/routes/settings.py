@@ -9,9 +9,9 @@ from pathlib import Path
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
-from ... import applog, config, filepick, gamepaths, iomconfig, maintenance, mods, tasks
+from ... import applog, config, filepick, gamepaths, iomconfig, maintenance, mods, tasks, updatecheck
 from ..common import (_local,
-                      _need_local, page)
+                      _need_local, con, page)
 
 router = APIRouter()
 
@@ -172,6 +172,29 @@ def api_iom_restore(request: Request, sha1: str = Body(...), backup: str | None 
 @router.get("/api/doctor")
 def api_doctor():
     return maintenance.doctor()
+
+
+@router.get("/api/update")
+def api_update(refresh: bool = False):
+    """Есть ли новая версия FO76 DB (последний релиз на GitHub). Запрос к GitHub — не чаще раза в 6 часов; refresh=true — сразу."""
+    c = con()
+    try:
+        updatecheck.refresh(c, force=refresh)
+        return updatecheck.info(c)
+    finally:
+        c.close()
+
+
+@router.post("/api/update/dismiss")
+def api_update_dismiss(request: Request, tag: str = Body(..., embed=True)):
+    """Скрыть баннер для этой версии (на следующую он появится снова)."""
+    _need_local(request)
+    c = con()
+    try:
+        updatecheck.dismiss(c, tag)
+        return {"ok": True}
+    finally:
+        c.close()
 
 
 @router.get("/api/backup")

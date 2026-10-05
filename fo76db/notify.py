@@ -8,7 +8,7 @@ import shutil
 import sqlite3
 import subprocess
 
-from . import rolls
+from . import rolls, updatecheck
 from .db import get_meta, set_meta
 from .events import title_ru
 from .sources import dumps
@@ -54,6 +54,17 @@ def check(con: sqlite3.Connection) -> None:
             new.add(key)
     except Exception as e:
         log.warning("проверка релизов: %s", e)
+
+    # 1б. Новая версия самой утилиты
+    try:
+        updatecheck.refresh(con)
+        u = updatecheck.info(con)
+        key = f"update:{u['latest']['tag']}" if u["latest"] else ""
+        if u["available"] and key not in sent:
+            send("Вышла новая версия FO76 DB", f"{u['latest']['tag']} (у вас {u['current']}): {u['latest']['url']}")
+            new.add(key)
+    except Exception as e:
+        log.warning("проверка обновлений: %s", e)
 
     # 2. События, которые начинаются в ближайшие сутки или уже идут
     now = dt.datetime.now()

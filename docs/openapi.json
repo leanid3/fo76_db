@@ -2076,6 +2076,88 @@
         ]
       }
     },
+    "/api/update": {
+      "get": {
+        "summary": "Api Update",
+        "description": "Есть ли новая версия FO76 DB (последний релиз на GitHub). Запрос к GitHub — не чаще раза в 6 часов; refresh=true — сразу.",
+        "operationId": "api_update_api_update_get",
+        "parameters": [
+          {
+            "name": "refresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Refresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "update"
+        ]
+      }
+    },
+    "/api/update/dismiss": {
+      "post": {
+        "summary": "Api Update Dismiss",
+        "description": "Скрыть баннер для этой версии (на следующую он появится снова).",
+        "operationId": "api_update_dismiss_api_update_dismiss_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_api_update_dismiss_api_update_dismiss_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "update"
+        ]
+      }
+    },
     "/api/backup": {
       "get": {
         "summary": "Api Backup Download",
@@ -2658,6 +2740,19 @@
         ],
         "title": "Body_api_tag_save_api_tags_post"
       },
+      "Body_api_update_dismiss_api_update_dismiss_post": {
+        "properties": {
+          "tag": {
+            "type": "string",
+            "title": "Tag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag"
+        ],
+        "title": "Body_api_update_dismiss_api_update_dismiss_post"
+      },
       "Body_api_wishlist_api_wishlist_post": {
         "properties": {
           "formid": {
@@ -2851,6 +2946,9 @@
     },
     {
       "name": "today"
+    },
+    {
+      "name": "update"
     },
     {
       "name": "updates"

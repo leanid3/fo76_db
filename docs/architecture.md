@@ -40,6 +40,7 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `fo76db/gamepaths.py` | Автоопределение игры: `detect()` (Steam Win/Linux/Flatpak, Proton, Xbox, Bethesda.net), только чтение |
 | `fo76db/mods.py` | Проверка модов по файлам: `check`, `status(refresh)`, `missing_for(страница)` — для предупреждения в `base.html` (`mod_warn`) и «Настройки → Моды» |
 | `fo76db/maintenance.py` | `backup()` (API бэкапа SQLite, ротация только своих файлов), `health()`, `doctor()` — для `fo76db backup/doctor`, `/healthz`, `/api/doctor`, «Настройки → Диагностика» |
+| `fo76db/updatecheck.py` | Проверка новой версии: `refresh()` (последний релиз GitHub, раз в 6 ч / 1 ч после сбоя, итог в `meta`: `update_latest`, `update_checked`, `update_error`, `update_dismissed`), `info()`, `dismiss()`; `parse()` — CalVer-кортежи. API `/api/update`, `/api/update/dismiss`, баннер — конец `static/app.js`, уведомление — `notify.check` |
 | `fo76db/filepick.py` | Системное окно выбора папки/файла (zenity/kdialog, PowerShell, osascript) для `POST /api/pick` |
 | `fo76db/applog.py` | Журнал: `setup(имя)` оборачивает stdout/stderr (`_Tee`) и дописывает строки в `data/app.log`; `tail()` для страницы настроек. Включается в `serve`, `watch`, `desktop` |
 | `fo76db/web/app.py` | Приложение FastAPI: токен, CSRF, заголовки и CSP (nonce для инлайн-скриптов), вход, PWA-файлы, `/healthz`; подключает роутеры |

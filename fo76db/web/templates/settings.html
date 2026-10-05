@@ -88,6 +88,7 @@
     <button id="backup-save" title="Сохранить копию в папку data/db-backups (хранятся 10 последних)">Сохранить копию в data/</button>
   </div>
   <table class="list" id="diag" aria-live="polite"></table>
+  <p class="small" id="upd-line" aria-live="polite" style="margin-top:10px">Версия {{ version }}. <button id="upd-check" title="Спросить GitHub, не вышла ли новая версия">Проверить обновления</button> <span id="upd-res" class="muted"></span></p>
 </div>
 <h1 style="margin-top:22px">Журнал приложения</h1>
 <div class="card">
@@ -335,6 +336,17 @@ document.getElementById("backup-save").onclick = e => busy(e.currentTarget, asyn
   try { const r = await post("/api/backup", {}); toast("Копия сохранена: " + r.path, "ok", 9000); } catch (err) { toast(err.message, "err"); }
 });
 runDiag();
+document.getElementById("upd-check").onclick = e => busy(e.currentTarget, async () => {
+  const out = document.getElementById("upd-res");
+  try {
+    const u = await api("/api/update?refresh=true");
+    out.replaceChildren();
+    if (!u.enabled) out.textContent = "Проверка отключена (update_check = false в config.toml).";
+    else if (u.error) out.textContent = "Не удалось проверить: " + u.error;
+    else if (u.newer) out.append("Вышла ", Object.assign(document.createElement("a"), { href: u.latest.url, target: "_blank", rel: "noopener", textContent: u.latest.tag }), ".");
+    else out.textContent = "Установлена последняя версия.";
+  } catch (err) { toast(err.message, "err"); }
+});
 
 // ---------- журнал ----------
 const LOG_BAD = /error|ошибк|traceback|exception|warning|предупрежд|critical/i;
