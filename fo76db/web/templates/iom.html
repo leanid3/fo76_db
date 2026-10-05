@@ -101,7 +101,7 @@ function label(key) { return FIELDS[key] ? `${FIELDS[key]} <span class="muted sm
 
 function editor(parent, key, rerender) {
   const v = parent[key];
-  const set = x => { parent[key] = x; setDirty(); };
+  const set = x => { if (key === "__proto__" || key === "constructor" || key === "prototype") return; parent[key] = x; setDirty(); };
   if (typeof v === "boolean") { const i = el("input", { type: "checkbox", checked: v }); i.onchange = () => set(i.checked); return i; }
   if (typeof v === "number") { const i = el("input", { type: "number", value: v, step: "any", style: "width:110px" }); i.oninput = () => i.value !== "" && set(+i.value); return i; }
   if (typeof v === "string") {

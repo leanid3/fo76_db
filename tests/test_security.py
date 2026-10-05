@@ -79,3 +79,12 @@ def test_csp_nonce_on_pages(client):
 def test_glossary_page(client):
     r = client.get("/glossary")
     assert r.status_code == 200 and "FormID" in r.text
+
+
+def test_filepick_start_not_in_powershell_script(monkeypatch):
+    """Путь старта передаётся окружением: кавычки Юникода в имени папки не выходят из строки скрипта."""
+    from fo76db import filepick
+    monkeypatch.setattr(filepick.sys, "platform", "win32")
+    nasty = "C:\\a\u2019; Remove-Item -Recurse C:\\x; \u2018"
+    script = filepick._command(True, nasty, "t")[-1]
+    assert "Remove-Item" not in script and "$env:FO76_START" in script

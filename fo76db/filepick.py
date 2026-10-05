@@ -26,7 +26,7 @@ def _command(folder: bool, start: str, title: str) -> list[str]:
         kind = "FolderBrowserDialog" if folder else "OpenFileDialog"
         prop = "SelectedPath" if folder else "FileName"
         script = ("Add-Type -AssemblyName System.Windows.Forms; "
-                  f"$d = New-Object System.Windows.Forms.{kind}; $d.{prop} = '{start.replace(chr(39), chr(39) * 2)}'; "
+                  f"$d = New-Object System.Windows.Forms.{kind}; $d.{prop} = $env:FO76_START; "
                   + ("$d.Description = $env:FO76_TITLE; " if folder else "$d.Title = $env:FO76_TITLE; ")
                   + "if ($d.ShowDialog() -eq 'OK') { [Console]::OutputEncoding = [Text.Encoding]::UTF8; "
                   + f"Write-Output $d.{prop} }}")
@@ -45,7 +45,7 @@ def _command(folder: bool, start: str, title: str) -> list[str]:
 def pick(folder: bool, start: str = "", title: str = "") -> str:
     """Путь, выбранный пользователем; пустая строка, если окно закрыли без выбора."""
     start = _start(start)
-    env = {**os.environ, "FO76_TITLE": title or ("Выберите папку" if folder else "Выберите файл")}
+    env = {**os.environ, "FO76_START": start, "FO76_TITLE": title or ("Выберите папку" if folder else "Выберите файл")}
     try:
         r = subprocess.run(_command(folder, start, title), capture_output=True, text=True, encoding="utf-8",
                            timeout=600, env=env)
