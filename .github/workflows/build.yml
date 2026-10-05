@@ -43,7 +43,7 @@ jobs:
           python -m pip install dist/*.whl
           fo76db --version
           python -c "import fo76db.web.app"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: fo76db-python
           path: dist/*
@@ -91,7 +91,7 @@ jobs:
         run: |
           mv "${{ matrix.file }}" "dist/${{ matrix.name }}"
           python packaging/third_party.py "dist/THIRD_PARTY_LICENSES-${{ runner.os }}.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: |
@@ -135,7 +135,7 @@ jobs:
             cp packaging/desktop/install-linux.sh dist/fo76db-desktop/
             tar -C dist -czf "dist/${{ matrix.name }}" fo76db-desktop
           fi
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           compression-level: 0
@@ -206,7 +206,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/fo76db-docker-image.tar
           cache-from: type=gha
       - run: gzip -9 "${{ runner.temp }}/fo76db-docker-image.tar"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: fo76db-docker-image.tar.gz
           path: ${{ runner.temp }}/fo76db-docker-image.tar.gz
