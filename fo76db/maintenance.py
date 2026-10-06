@@ -95,6 +95,12 @@ def doctor() -> list[dict]:
         p = Path(cfg[key])
         out.append(_row(label, True if p.exists() else None, str(p) + ("" if p.exists() else " — пока нет")))
 
+    from .sources import steam as steam_src
+    try:
+        out.append(_row("Steam API", True, f"api.steampowered.com отвечает, онлайн сейчас: {steam_src.fetch_players()}"))
+    except Exception as e:  # noqa: BLE001
+        out.append(_row("Steam API", None, f"не отвечает: {e}", "Update Notes и график онлайна не обновятся"))
+
     host, token = cfg["host"], cfg.get("token")
     if host not in config.LOOPBACK_HOSTS:
         out.append(_row("Доступ из сети", True if token else False, f"сервер слушает {host}" + (", токен задан" if token else ", токена НЕТ"),

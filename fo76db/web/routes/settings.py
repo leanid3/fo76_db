@@ -31,7 +31,8 @@ def _paths_info(refresh: bool = False) -> dict:
         "backup_root": Path(values["backup_root"]).is_dir(),
         "mods_dir": Path(values["mods_dir"]).is_dir() if values["mods_dir"] else None,
     }
-    return {"values": values, "sources": src, "checks": checks, "candidates": gamepaths.detect(refresh)}
+    return {"values": values, "sources": src, "checks": checks, "candidates": gamepaths.detect(refresh),
+            "steam_build": gamepaths.steam_build()}
 
 
 @router.get("/api/paths")

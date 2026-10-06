@@ -63,7 +63,6 @@ Price history, Packages / DLC, Achievements, календарь активнос
 
 1. Достижения (опционально, нужен Steam API key в `config.toml`): `GetGlobalAchievementPercentagesForApp` + `GetPlayerAchievements`.
 2. Тепловая карта онлайна по часам и дням недели — когда накопится хотя бы месяц замеров.
-3. Не сделано из плана: показ сборки в `/settings` (сейчас только на `/updates`) и проверка доступа к Steam в `doctor`.
 
 Ограничения: у API нет истории онлайна (копится только с момента запуска `watch`), онлайн — только Steam; детали интерфейса SteamDB не сверены.
 

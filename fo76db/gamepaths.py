@@ -135,9 +135,16 @@ def steam_build() -> dict | None:
     """Сборка игры из appmanifest_1151340.acf первой найденной библиотеки Steam: {buildid, size, updated, library}. Только чтение."""
     from .sources import steam
 
-    for lib in _steam_libraries():
+    from . import config
+
+    # библиотеки Steam, затем папка рядом с игрой (<библиотека>/Fallout76/Data → <библиотека>): так лежит и при нестандартной библиотеке
+    places = [(lib, lib / "steamapps") for lib in _steam_libraries()]
+    parents = Path(config.game_data()).parents
+    if len(parents) > 1:
+        places.append((parents[1], parents[1]))
+    for lib, folder in places:
         try:
-            text = (lib / "steamapps" / f"appmanifest_{STEAM_APPID}.acf").read_text(encoding="utf-8", errors="replace")
+            text = (folder / f"appmanifest_{STEAM_APPID}.acf").read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
         if info := steam.parse_appmanifest(text):

@@ -216,6 +216,8 @@ function showPaths(info) {
     `<div style="margin:4px 0"><b>${esc(c.label)}</b> <code>${esc(c.game_data)}</code>${c.ini_dir ? ` · ini: <code>${esc(c.ini_dir)}</code>` : ""}
      <button data-i="${i}" class="p-use">Использовать</button></div>`).join("")
     : "Установка не найдена автоматически. Укажите папку Data вручную или импортируйте папку игры.";
+  const b = info.steam_build;
+  if (b) document.getElementById("p-found").innerHTML += `<div class="muted small" style="margin-top:6px">Сборка Steam: <b>${esc(b.buildid)}</b>${b.updated ? ", обновлена " + esc(b.updated.replace("T", " ")) : ""}</div>`;
   document.getElementById("p-table").innerHTML = PATH_FIELDS.map(f => {
     const ok = info.checks[f.k], mark = ok === null ? "" : ok ? '<span class="yes">✔</span>' : '<span class="no" title="не найдено">✖</span>';
     return `<tr><td><b>${f.name}</b><br><span class="muted small">${f.hint}</span></td>
