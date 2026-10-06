@@ -3,7 +3,7 @@
   "info": {
     "title": "FO76 DB",
     "description": "Локальный API утилиты FO76 DB: каталог предметов, инвентарь, роллы, события, настройки.\n\n**Доступ.** С этого компьютера (127.0.0.1, без прокси) токен не нужен. Из сети, если в настройках задан токен, передавайте\n`Authorization: Bearer <токен>` (или cookie `fo76db_token`, или `?token=` один раз). Без токена — 401.\nИзменяющие запросы с чужого `Origin` без Bearer отклоняются (защита от CSRF). Для браузерного фронтенда на другом адресе\nдобавьте его в `cors_origins` в `config.toml`. Запись путей, настроек сети, конфига IOM и подобное — только с этого компьютера.",
-    "version": "2026.10.6"
+    "version": "2026.10.6.1"
   },
   "paths": {
     "/healthz": {
@@ -1868,6 +1868,114 @@
         ]
       }
     },
+    "/api/notifications": {
+      "get": {
+        "summary": "Api Notifications",
+        "description": "Уведомления для браузера. Без `after` — только текущий последний номер (старое не показывается);\nс `after` — всё новее этого номера.",
+        "operationId": "api_notifications_api_notifications_get",
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
+    "/api/features": {
+      "get": {
+        "summary": "Api Features",
+        "description": "Вкладки, блоки страниц и внешние сервисы с текущим состоянием (включено/выключено).",
+        "operationId": "api_features_api_features_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "features"
+        ]
+      },
+      "post": {
+        "summary": "Api Features Save",
+        "description": "Изменить переключатели: {\"page:events\": false, \"service:steam\": true, ...}. Только с этого компьютера.",
+        "operationId": "api_features_save_api_features_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "type": "object",
+                "title": "Body"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "features"
+        ]
+      }
+    },
     "/api/network": {
       "get": {
         "summary": "Api Network",
@@ -3041,6 +3149,9 @@
       "name": "events"
     },
     {
+      "name": "features"
+    },
+    {
       "name": "healthz"
     },
     {
@@ -3078,6 +3189,9 @@
     },
     {
       "name": "network"
+    },
+    {
+      "name": "notifications"
     },
     {
       "name": "nukes"
