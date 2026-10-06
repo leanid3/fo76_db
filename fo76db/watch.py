@@ -1,5 +1,6 @@
 """Слежение за файлами выгрузки: при изменении itemsmod.json / LegendaryMods.ini — автоимпорт.
-Раз в 6 часов — обновление календаря событий (`events.refresh_if_stale`), раз в 10 минут — уведомления; после импорта инвентаря — сразу проверка нужных роллов.
+Раз в 6 часов — обновление календаря событий (`events.refresh_if_stale`), раз в час — новости Steam, раз в 15 минут — замер онлайна,
+раз в 10 минут — уведомления; после импорта инвентаря — сразу проверка нужных роллов.
 
 Опрос mtime раз в несколько секунд: inotify не видит изменения внутри некоторых bind-mount контейнеров.
 """
@@ -8,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 
-from . import config, db, events, notify
+from . import config, db, events, notify, steam
 from .importers import inventory
 
 log = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ def run(interval: float = 5.0) -> None:
     # ставшие непустыми позже (expand пропускает пустые), — новые выгрузки.
     seen = _scan(config.load())
     last_notify = 0.0
+    last_sample = 0.0
     log.info("Слежу за выгрузками и событиями (Ctrl+C — выход)")
     while True:
         try:
@@ -61,9 +63,21 @@ def run(interval: float = 5.0) -> None:
                 except Exception as e:
                     log.warning("события: %s", e)
                 try:
+                    if (r := steam.refresh_if_stale(db.connect())) is not None:
+                        last_sample = time.time()  # refresh уже сделал замер онлайна
+                        log.info("Steam обновлён%s", f": {'; '.join(r['errors'])}" if r["errors"] else "")
+                except Exception as e:
+                    log.warning("Steam: %s", e)
+                try:
                     notify.check(db.connect())
                 except Exception as e:
                     log.warning("уведомления: %s", e)
+            if time.time() - last_sample > steam.SAMPLE_EVERY:
+                last_sample = time.time()
+                try:
+                    steam.sample_online(db.connect())
+                except Exception as e:
+                    log.warning("онлайн Steam: %s", e)
             for kind in ("inventory", "legendary_mods"):
                 for path in config.expand(cfg[kind]):
                     try:

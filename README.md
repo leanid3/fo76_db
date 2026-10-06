@@ -62,7 +62,8 @@ cp config.toml.example config.toml   # по желанию
 | `.venv/bin/python -m fo76db history --relabel` | Только обновить названия обновлений по таблице патчей Fallout Wiki |
 | `.venv/bin/python -m fo76db import` | Импорт инвентаря (`itemsmod.json`) и легендарных модов (`LegendaryMods.ini`) |
 | `.venv/bin/python -m fo76db events` | Обновить календарь событий, Минерву и сезоны (falloutbuilds.com, fallout.wiki) |
-| `.venv/bin/python -m fo76db watch` | Автоимпорт при изменении этих файлов, уведомления (`notify-send`) раз в 10 минут, обновление событий раз в 6 часов |
+| `.venv/bin/python -m fo76db steam` | Заметки к патчам из Steam, замер онлайна, проверка сборки игры |
+| `.venv/bin/python -m fo76db watch` | Автоимпорт при изменении этих файлов, уведомления (`notify-send`) раз в 10 минут, обновление событий раз в 6 часов, новости Steam раз в час, замер онлайна раз в 15 минут |
 | `.venv/bin/python -m fo76db notify` | Разовая проверка уведомлений |
 | `.venv/bin/python -m fo76db serve --watch` | Веб-интерфейс и слежение за выгрузками в одном процессе (то же — `serve_watch = true` в `config.toml`) |
 | `.venv/bin/python -m fo76db backup [--out ПАПКА] [--keep N]` | Копия базы (теги, вишлист, роллы, чек-лист, история инвентаря) в `data/db-backups`, хранятся 10 последних |

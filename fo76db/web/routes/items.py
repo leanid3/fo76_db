@@ -7,7 +7,7 @@ import re
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 
-from ... import autotags, obtain
+from ... import autotags, gamepaths, obtain, steam
 from ...importers.inventory import current_items_sql
 from ...sources import fo76wiki
 from ..common import _color, con, page
@@ -85,7 +85,8 @@ def updates_page(request: Request):
         g["total"] += r["n"]
         g["date"] = min(g["date"], r["date"])
     first = c.execute("SELECT version, date FROM builds ORDER BY vkey LIMIT 1").fetchone()
-    return page(request, "updates.html", groups=sorted(groups.values(), key=lambda g: g["order"], reverse=True), first=first)
+    return page(request, "updates.html", groups=sorted(groups.values(), key=lambda g: g["order"], reverse=True), first=first,
+                patches=steam.news(c, 8), build=gamepaths.steam_build())
 
 
 # ---------- API ----------

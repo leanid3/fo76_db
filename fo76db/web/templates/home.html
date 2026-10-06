@@ -29,7 +29,7 @@
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
 // «Данные»: те же действия, что команды catalog / history / events / import, — в фоне на сервере
-const TASK_LABEL = {catalog: "Каталог", history: "История", events: "События", import: "Импорт выгрузок"};
+const TASK_LABEL = {catalog: "Каталог", history: "История", events: "События", steam: "Steam", import: "Импорт выгрузок"};
 let taskTimer = null;
 // Мастер первого запуска: путь к игре → каталог → выгрузка инвентаря → события; пропадает, когда всё сделано
 function renderOnboard(d, tasks) {
@@ -62,7 +62,7 @@ async function loadTasks() {
   renderOnboard(d, s.tasks);
   document.getElementById("datainfo").innerHTML =
     `Предметов в каталоге: <b>${(+d.items).toLocaleString("ru")}</b>${d.catalog_release ? ` (${esc(d.catalog_release)})` : ""} · ` +
-    `версий в истории: <b>${d.builds}</b> · события обновлены: ${d.events_fetched ? esc(d.events_fetched.slice(0, 16).replace("T", " ")) : "—"}` +
+    `версий в истории: <b>${d.builds}</b> · события обновлены: ${d.events_fetched ? esc(d.events_fetched.slice(0, 16).replace("T", " ")) : "—"} · Steam: ${d.steam_fetched ? esc(d.steam_fetched.slice(0, 16).replace("T", " ")) : "—"}` +
     `<br>Папка данных: <code>${esc(d.home)}</code> · игра: <code>${esc(d.game_data)}</code> ${d.game_found ? "" : '<span class="no">(SeventySix.esm не найден)</span>'}`;
   const running = Object.entries(s.tasks).find(([, t]) => t.status === "running");
   document.getElementById("taskbtns").innerHTML = Object.entries(s.tasks).map(([name, t]) =>

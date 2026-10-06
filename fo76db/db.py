@@ -264,6 +264,21 @@ CREATE TABLE IF NOT EXISTS wishlist (
     note   TEXT,
     added  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Steam: новости игры (patch = 1 — Update Notes) и замеры онлайна (копятся с первого запуска watch)
+CREATE TABLE IF NOT EXISTS steam_news (
+    gid       TEXT PRIMARY KEY,
+    title     TEXT NOT NULL,
+    date      TEXT NOT NULL,           -- местное время ГГГГ-ММ-ДДTЧЧ:ММ
+    url       TEXT,
+    feedlabel TEXT,
+    patch     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS steam_news_date ON steam_news(date);
+CREATE TABLE IF NOT EXISTS online_samples (
+    ts      TEXT PRIMARY KEY,          -- местное время ГГГГ-ММ-ДДTЧЧ:ММ:СС
+    players INTEGER NOT NULL
+) WITHOUT ROWID;
 """
 
 

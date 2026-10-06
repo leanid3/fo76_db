@@ -2,6 +2,17 @@
 {% block title %}Обновления — FO76 DB{% endblock %}
 {% block main %}
 <h1>Что добавляли в обновлениях</h1>
+<div class="card" style="margin-bottom:16px">
+  <h2 style="margin-top:0">Update Notes из Steam</h2>
+  {% if build %}<div class="small muted">Ваша сборка: <b>{{ build.buildid }}</b>{% if build.updated %}, обновлена {{ build.updated.replace('T', ' ') }}{% endif %} · {{ '%.1f'|format(build.size / 1e9) }} ГБ</div>{% endif %}
+  <ul class="small" style="margin:6px 0 0;padding-left:18px">
+  {% for p in patches %}
+    <li>{{ p.date[:10] }} — <a href="{{ p.url }}" target="_blank" rel="noopener">{{ p.title }}</a></li>
+  {% else %}
+    <li class="muted">Заметок пока нет: <code>python -m fo76db steam</code> (или кнопка «Steam» на главной).</li>
+  {% endfor %}
+  </ul>
+</div>
 <p class="muted small">По первому появлению FormID в релизах fo76-dumps. Первый доступный релиз — {{ first.version if first else '—' }} ({{ first.date if first else '' }}):
 всё, что было в игре к этому моменту, отнесено к нему. Учитываются только не служебные записи.</p>
 <div class="updates grid2">

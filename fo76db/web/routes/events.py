@@ -9,7 +9,7 @@ import urllib.request
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from ... import events
+from ... import events, gamepaths, steam
 from ..common import EVENT_KINDS, con, page
 
 router = APIRouter()
@@ -50,6 +50,26 @@ def api_event_delete(event_id: int):
 @router.post("/api/events/refresh")
 def api_events_refresh():
     return events.refresh(con())
+
+
+@router.get("/api/steam/news")
+def api_steam_news(limit: int = 10, all: bool = False):
+    return steam.news(con(), max(1, min(limit, 100)), patches_only=not all)
+
+
+@router.get("/api/steam/online")
+def api_steam_online(days: int = 7):
+    return steam.online(con(), days)
+
+
+@router.get("/api/steam/build")
+def api_steam_build():
+    return gamepaths.steam_build()
+
+
+@router.post("/api/steam/refresh")
+def api_steam_refresh():
+    return steam.refresh(con())
 
 
 @router.get("/api/today")

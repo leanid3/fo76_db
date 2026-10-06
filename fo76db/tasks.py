@@ -16,6 +16,7 @@ TITLES = {
     "catalog": "Каталог: игра + последний релиз fo76-dumps (~1 мин)",
     "history": "История: «добавлено в обновлении» по всем версиям (первый раз ~15 мин и ~1 ГБ)",
     "events": "События, Минерва, сезоны",
+    "steam": "Steam: Update Notes, онлайн, сборка игры",
     "import": "Импорт выгрузок инвентаря и легендарных модов",
 }
 
@@ -45,6 +46,13 @@ def _events(log) -> None:
         + (f"; ошибки: {'; '.join(r['errors'])}" if r.get("errors") else ""))
 
 
+def _steam(log) -> None:
+    from . import steam
+    r = steam.refresh(db.connect())
+    log(f"Новостей: {r.get('total', '—')}, новых патчей: {r.get('new_patches', '—')}, онлайн: {r.get('online', '—')}, сборка: {r.get('build') or '—'}"
+        + (f"; ошибки: {'; '.join(r['errors'])}" if r["errors"] else ""))
+
+
 def _import(log) -> None:
     from . import notify
     from .importers import inventory
@@ -64,7 +72,7 @@ def _import(log) -> None:
     notify.check_rolls(con)
 
 
-RUN = {"catalog": _catalog, "history": _history, "events": _events, "import": _import}
+RUN = {"catalog": _catalog, "history": _history, "events": _events, "steam": _steam, "import": _import}
 
 
 def _now() -> str:
@@ -106,6 +114,7 @@ def status() -> dict:
         "builds": con.execute("SELECT COUNT(*) FROM builds WHERE processed = 1").fetchone()[0],
         "catalog_release": db.get_meta(con, "catalog_release"),
         "events_fetched": db.get_meta(con, "events_fetched"),
+        "steam_fetched": db.get_meta(con, "steam_fetched"),
         "snapshots": con.execute("SELECT COUNT(*) FROM inv_snapshots").fetchone()[0],
         "game_data": str(config.game_data()),
         "game_found": (config.game_data() / "SeventySix.esm").is_file(),

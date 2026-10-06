@@ -133,6 +133,15 @@ def cmd_events(args) -> None:
         print(f"  ошибка: {e}")
 
 
+def cmd_steam(args) -> None:
+    from . import steam
+
+    r = steam.refresh(db.connect())
+    print(f"Новостей: {r.get('total', '—')}, новых патчей: {r.get('new_patches', '—')}, онлайн: {r.get('online', '—')}, сборка: {r.get('build') or '—'}")
+    for e in r["errors"]:
+        print(f"  ошибка: {e}")
+
+
 def cmd_backup(args) -> None:
     from . import maintenance
 
@@ -208,6 +217,9 @@ def main(argv=None) -> None:
 
     c = sub.add_parser("events", help="обновить календарь событий, Минерву и сезоны (falloutbuilds.com, fallout.wiki)")
     c.set_defaults(func=cmd_events)
+
+    c = sub.add_parser("steam", help="обновить Update Notes из Steam, замерить онлайн, проверить сборку игры")
+    c.set_defaults(func=cmd_steam)
 
     c = sub.add_parser("backup", help="копия базы (теги, вишлист, роллы, история инвентаря) в data/db-backups")
     c.add_argument("--out", help="папка для копии (по умолчанию data/db-backups)")

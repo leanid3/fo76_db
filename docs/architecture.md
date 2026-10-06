@@ -17,6 +17,8 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `LICENSE`, `CREDITS.md`, `fo76db/web/static/tabulator.LICENSE.txt` | Лицензия (GNU AGPL v3 или новее), благодарности и источники, лицензия Tabulator |
 | `fo76db/sources/wiki_patches.py` | Названия и даты обновлений из таблицы патчей Fallout Wiki |
 | `fo76db/sources/falloutbuilds.py` | Календарь событий (`parse_calendar`) и Минерва (`parse_minerva`: распродажи и схемы, супер-распродажи раскрываются) с falloutbuilds.com |
+| `fo76db/sources/steam.py` | Публичные Steam API Fallout 76 без ключа: новости (`parse_news`, Update Notes — тег `patchnotes`), онлайн (`parse_players`), поля `appmanifest_1151340.acf` (`parse_appmanifest`) |
+| `fo76db/steam.py` | Оркестрация Steam: `refresh` (новости + замер онлайна + сборка, мета `steam_fetched`/`steam_error`), `refresh_if_stale` (раз в час), `sample_online` (замер, хранится 400 дней), `check_build` (смена BuildID → событие `source='steam'`), `news`, `online` |
 | `fo76db/sources/fo76wiki.py` | Сезоны (`parse_seasons`), списки Daily Ops (`parse_dailyops`, запасной `DAILYOPS_FALLBACK`) с fallout.wiki; «как получить» со страницы предмета (`obtain`: fandom, затем fallout.wiki, через `api.php`; русская страница fandom — `_ru_page`) |
 | `fo76db/sources/dates.py` | Английские даты без `strptime`: `english_date`, `nearest_year` (дата без года), `month_number`. `%b`/`%B` зависят от локали, а Qt при запуске окна выставляет её из окружения, и при русской локали «Nov 12» не разбиралось |
 | `fo76db/sources/net.py` | `get()`: HTTP с коротким таймаутом подключения к каждому IP и запоминанием рабочего адреса |
@@ -74,6 +76,8 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `display_names` | Свои отображаемые имена по ключу предмета |
 | `saved_searches` | Сохранённые поиски: страница, имя, строка запроса |
 | `events` | События. `source`: NULL — вручную, `falloutbuilds`, `wiki` (сезоны), `dailyops`. `ext_key` — стабильный ключ автособытия, `data` — JSON (распродажа и место Минервы, номер сезона, параметры Daily Ops). Время — местное, `ГГГГ-ММ-ДДTЧЧ:ММ` |
+| `steam_news` | Новости игры из Steam: `gid`, `title`, `date` (местное время), `url`, `patch` = 1 для Update Notes |
+| `online_samples` | Замеры онлайна Steam: `ts`, `players`. Копятся только при работающем `watch` (раз в 15 мин) или после `fo76db steam` |
 | `minerva_plans` | Схемы распродаж Минервы: номер, `name_en`, `formid` (NULL — не нашлось в каталоге). Перезаписывается при обновлении |
 | `daily_tasks`, `daily_done` | Чек-лист ежедневок: пункты (`reset` = `daily`/`weekly`, `per_char`) и отметки по персонажам за `period` (дата начала игрового дня или недели). Отметки старше 30 дней удаляются |
 | `wishlist` | Вишлист |
@@ -127,6 +131,10 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `GET /api/iom`, `POST /api/iom/validate`, `POST /api/iom/save`, `POST /api/iom/restore` (тело: `sha1`, необязательный `backup` — путь из списка `backups`) | Редактор IOM (см. [iom-editor.md](iom-editor.md)) |
 | `GET/POST /api/events`, `DELETE /api/events/{id}` | События. Удаляются только ручные и Daily Ops |
 | `POST /api/events/refresh` | Обновить календарь, Минерву, сезоны и списки Daily Ops: `{calendar, minerva_plans, seasons, errors}` |
+| `GET /api/steam/news?limit&all` | Заметки к патчам из Steam (`all=true` — все новости игры) |
+| `GET /api/steam/online?days` | Онлайн Steam: `{now, now_ts, peak24h, collected_since, points: [[ts, players]]}` |
+| `GET /api/steam/build` | Сборка игры из локального `appmanifest` (`buildid`, `size`, `updated`, `library`) или `null` |
+| `POST /api/steam/refresh` | Обновить новости, замерить онлайн: `{total, new_patches, online, build, errors}` |
 | `GET /api/today?character_id` | Сводка: сбросы дня и недели, сезон, идущие и ближайшие события, Минерва (+ не изучено у персонажа), Daily Ops, списки Daily Ops |
 | `GET /api/minerva?sale&character_id` | Схемы распродажи: `id`, названия, `known`, `wish` |
 | `POST /api/dailyops` | `{mode, location, faction, mutations, note}` на текущий игровой день |

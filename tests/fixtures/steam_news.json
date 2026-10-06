@@ -1,0 +1,115 @@
+{
+ "appnews": {
+  "appid": 1151340,
+  "newsitems": [
+   {
+    "gid": "1845383656385119",
+    "title": "Fallout 76 может позволить игрокам стать супермутантами - разработчики обсуждают такую возможность",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656385119",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/0KAlEMCA4cRu4icJj_n5YQ.webp\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790921835,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656382084",
+    "title": "Fallout 76 Update Notes - October 1",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1845383656382084",
+    "is_external_url": true,
+    "author": "GhostlyRich_Bethesda",
+    "contents": "[p]Hey everyone,[/p][p align=\"start\"]Today we are releasing an update that inclu",
+    "feedlabel": "Community Announcements",
+    "date": 1790871376,
+    "feedname": "steam_community_announcements",
+    "feed_type": 1,
+    "appid": 1151340,
+    "tags": [
+     "patchnotes"
+    ]
+   },
+   {
+    "gid": "1845383656379928",
+    "title": "Экспедиции могут вернуться в Fallout 76 в новом виде - Bethesda не отказалась от формата",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656379928",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/Sbyal7cP9SItDQNxG6eggA.jpeg\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790833241,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656379859",
+    "title": "Bethesda продолжит развивать C.A.M.P. в Fallout 76 - строительство получит новые возможности",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656379859",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/ZgKhGiLP5DXP4pYEDplVHg.webp\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790831980,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656378093",
+    "title": "Fallout 76 расширит карту до Столичной Пустоши из Fallout 3 - Raven Rock станет частью основного мира",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656378093",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/huZirLqVFR8Qx_LxuWOcNw.jpeg\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790782690,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656378094",
+    "title": "Fallout 76 превратит питомцев в полноценных спутников - они будут сражаться и прокачиваться",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656378094",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/fM9IoE4S_UK1Xhbo6rortg.jpeg\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790782547,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656378095",
+    "title": "Fallout 76 получит \"Убежища\" с меняющимися условиями - Bethesda готовит игроков к новым рейдам",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/PlayGround.ru - официальная группа/1845383656378095",
+    "is_external_url": true,
+    "author": "",
+    "contents": "<img src=\"https://i.playground.ru/e/cfNay8pnzq-a1CAasGYzHg.jpeg\"/>\n             ",
+    "feedlabel": "PlayGround.ru - официальная группа",
+    "date": 1790782458,
+    "feedname": "PlayGround.ru - официальная группа",
+    "feed_type": 0,
+    "appid": 1151340
+   },
+   {
+    "gid": "1845383656378047",
+    "title": "Letter from the Directors – September 2026",
+    "url": "https://steamstore-a.akamaihd.net/news/externalpost/steam_community_announcements/1845383656378047",
+    "is_external_url": true,
+    "author": "GhostlyRich_Bethesda",
+    "contents": "[p][i]Please Stand By for our Fallout 76 Letter from the Directors, detailing ex",
+    "feedlabel": "Community Announcements",
+    "date": 1790782142,
+    "feedname": "steam_community_announcements",
+    "feed_type": 1,
+    "appid": 1151340
+   }
+  ],
+  "count": 278
+ }
+}

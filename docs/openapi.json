@@ -1321,6 +1321,136 @@
         ]
       }
     },
+    "/api/steam/news": {
+      "get": {
+        "summary": "Api Steam News",
+        "operationId": "api_steam_news_api_steam_news_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "all",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "All"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
+    "/api/steam/online": {
+      "get": {
+        "summary": "Api Steam Online",
+        "operationId": "api_steam_online_api_steam_online_get",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 7,
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
+    "/api/steam/build": {
+      "get": {
+        "summary": "Api Steam Build",
+        "operationId": "api_steam_build_api_steam_build_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
+    "/api/steam/refresh": {
+      "post": {
+        "summary": "Api Steam Refresh",
+        "operationId": "api_steam_refresh_api_steam_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
     "/api/today": {
       "get": {
         "summary": "Api Today",
@@ -2937,6 +3067,9 @@
     },
     {
       "name": "snapshots"
+    },
+    {
+      "name": "steam"
     },
     {
       "name": "tags"

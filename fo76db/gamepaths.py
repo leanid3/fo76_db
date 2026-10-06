@@ -131,6 +131,20 @@ def _detect() -> tuple[dict, ...]:
     return tuple(found)
 
 
+def steam_build() -> dict | None:
+    """Сборка игры из appmanifest_1151340.acf первой найденной библиотеки Steam: {buildid, size, updated, library}. Только чтение."""
+    from .sources import steam
+
+    for lib in _steam_libraries():
+        try:
+            text = (lib / "steamapps" / f"appmanifest_{STEAM_APPID}.acf").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        if info := steam.parse_appmanifest(text):
+            return info | {"library": str(lib)}
+    return None
+
+
 def detect(refresh: bool = False) -> list[dict]:
     """Найденные установки игры: [{store, label, game_data, ini_dir, iom_config}]."""
     if refresh:

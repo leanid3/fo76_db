@@ -8,7 +8,7 @@ import shutil
 import sqlite3
 import subprocess
 
-from . import rolls, updatecheck
+from . import rolls, steam, updatecheck
 from .db import get_meta, set_meta
 from .events import title_ru
 from .sources import dumps
@@ -65,6 +65,24 @@ def check(con: sqlite3.Connection) -> None:
             new.add(key)
     except Exception as e:
         log.warning("проверка обновлений: %s", e)
+
+    # 1в. Steam: новые Update Notes и смена сборки игры. Первое заполнение таблицы — без уведомлений о старых заметках.
+    try:
+        patches = con.execute("SELECT gid, title, url FROM steam_news WHERE patch = 1 ORDER BY date").fetchall()
+        if get_meta(con, "steam_notes_seeded"):
+            for p in patches:
+                key = f"steamnews:{p['gid']}"
+                if key not in sent:
+                    send("Заметки к обновлению Fallout 76", f"{p['title']}\n{p['url'] or ''}".strip())
+                    new.add(key)
+        elif patches:
+            new |= {f"steamnews:{p['gid']}" for p in patches}
+            set_meta(con, "steam_notes_seeded", "1")
+        if (b := steam.check_build(con)) and f"steambuild:{b['new']}" not in sent:
+            send("Игра обновилась", f"Сборка Steam {b['old']} → {b['new']}")
+            new.add(f"steambuild:{b['new']}")
+    except Exception as e:
+        log.warning("Steam: %s", e)
 
     # 2. События, которые начинаются в ближайшие сутки или уже идут
     now = dt.datetime.now()
