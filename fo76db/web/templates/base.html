@@ -17,20 +17,22 @@
 <body>
 {% set path = request.url.path %}
 {# разделы: (заголовок, значок, [(адрес, подпись, значок, подсказка)]) — в раскладке Pip-Boy это вкладки и подвкладки, в классической — плоское меню #}
-{% set nav_groups = [
+{% set nav_all = [
   ('Главное', '⌂', [('/home', 'Главная', '⌂', ''), ('/events', 'События', '☢', ''), ('/updates', 'Обновления', '⟳', ''), ('/achievements', 'Достижения', '🏆', 'Редкость достижений Steam')]),
   ('Инвентарь', '🎒', [('/inventory', 'Инвентарь', '🎒', ''), ('/optimize', 'Вес', '⚖', 'Куда уходит вес и что убрать'),
                        ('/rolls', 'Роллы', '★', 'Нужные роллы легендарок: оценка и уведомления'), ('/iom', 'IOM', '⚙', 'Правила Invent-O-Matic')]),
   ('База', '▤', [('/', 'Каталог', '▤', ''), ('/plans', 'Схемы', '✎', ''), ('/legendary', 'Легендарные моды', '✦', ''), ('/history', 'История', '⏳', '')]),
   ('Настройки', '☼', [('/settings', 'Настройки', '☼', 'Профили, теги, стиль, журнал')]),
 ] %}
+{% set nav_groups = [] %}
+{% for g in nav_all %}{% set ls = g[2]|select('navlink')|list %}{% if ls %}{% set _ = nav_groups.append((g[0], g[1], ls)) %}{% endif %}{% endfor %}
 {% macro nav_on(href) %}{{ 'active' if path == href or (href == '/' and path.startswith('/item')) }}{% endmacro %}
 {% macro nav_status() %}
   <select id="who" title="Персонаж для отметок «изучено» на всех страницах">
     <option value="">Персонаж: —</option>
     {% for c in all_chars %}<option value="{{ c.id }}">{{ c.label }}{% if c.account != '?' %} · {{ c.account_label }}{% endif %}</option>{% endfor %}
   </select>
-  <span class="nukes" id="nukes" role="status"></span>
+  {% if feat('shell.nukes') %}<span class="nukes" id="nukes" role="status"></span>{% endif %}
   <span class="tag offline" id="offline" role="status" hidden title="Сервер недоступен: показана последняя сохранённая копия">нет связи</span>
 {% endmacro %}
 <a class="skip" href="#main">К содержимому</a>

@@ -8,16 +8,30 @@ import shutil
 import sqlite3
 import subprocess
 
-from . import rolls, steam, updatecheck
-from .db import get_meta, set_meta
+from . import features, rolls, steam, updatecheck
+from .db import connect, get_meta, set_meta
 from .events import title_ru
 from .sources import dumps
 
 log = logging.getLogger(__name__)
 
 
-def send(title: str, body: str) -> None:
+def _store(kind: str, title: str, body: str) -> None:
+    """Записать уведомление для браузера (хранятся последние 200)."""
+    try:
+        con = connect()
+        con.execute("INSERT INTO notifications(ts, kind, title, body) VALUES (?, ?, ?, ?)",
+                    (dt.datetime.now().isoformat(timespec="seconds"), kind, title, body))
+        con.execute("DELETE FROM notifications WHERE id <= (SELECT max(id) FROM notifications) - 200")
+        con.commit()
+        con.close()
+    except Exception as e:
+        log.warning("запись уведомления для браузера: %s", e)
+
+
+def send(title: str, body: str, kind: str = "") -> None:
     log.info("🔔 %s: %s", title, body)
+    _store(kind, title, body)
     if shutil.which("notify-send"):
         subprocess.run(["notify-send", "-a", "FO76 DB", title, body], check=False)
     elif shutil.which("gdbus"):  # Flatpak: notify-send в среде нет, gdbus есть (из GLib)
@@ -30,18 +44,28 @@ def send(title: str, body: str) -> None:
                        check=False, stdout=subprocess.DEVNULL)
 
 
-def _sent(con: sqlite3.Connection) -> set[str]:
-    return set(json.loads(get_meta(con, "notified") or "[]"))
+def _notify(kind: str, title: str, body: str) -> None:
+    """Показать уведомление, если этот тип не выключен в настройках (выключенное всё равно помечается отправленным)."""
+    if features.notify_on(kind):
+        send(title, body, kind)
 
 
-def _mark(con: sqlite3.Connection, keys: set[str]) -> None:
-    set_meta(con, "notified", json.dumps(sorted(keys)[-500:]))
+def _sent(con: sqlite3.Connection) -> list[str]:
+    """Отправленные ключи в порядке отправки (старые — в начале)."""
+    return json.loads(get_meta(con, "notified") or "[]")
+
+
+def _mark(con: sqlite3.Connection, old: list[str], new: set[str]) -> None:
+    """Дописать новые ключи в конец и оставить последние 500 — самые старые отбрасываются первыми."""
+    keys = old + sorted(new - set(old))
+    set_meta(con, "notified", json.dumps(keys[-500:]))
     con.commit()
 
 
 def check(con: sqlite3.Connection) -> None:
-    sent = _sent(con)
-    new = set()
+    seq = _sent(con)
+    sent = set(seq)
+    new: set[str] = set()
 
     # 1. Новый релиз fo76-dumps = вышел патч игры
     try:
@@ -50,7 +74,7 @@ def check(con: sqlite3.Connection) -> None:
         have = get_meta(con, "catalog_release")
         key = f"release:{latest['tag']}"
         if have and latest["tag"] != have and key not in sent:
-            send("Новый патч Fallout 76", f"Вышли данные версии {latest['version']}. Обновите базу: fo76db catalog && fo76db history")
+            _notify("release", "Новый патч Fallout 76", f"Вышли данные версии {latest['version']}. Обновите базу: fo76db catalog && fo76db history")
             new.add(key)
     except Exception as e:
         log.warning("проверка релизов: %s", e)
@@ -61,7 +85,7 @@ def check(con: sqlite3.Connection) -> None:
         u = updatecheck.info(con)
         key = f"update:{u['latest']['tag']}" if u["latest"] else ""
         if u["available"] and key not in sent:
-            send("Вышла новая версия FO76 DB", f"{u['latest']['tag']} (у вас {u['current']}): {u['latest']['url']}")
+            _notify("appupdate", "Вышла новая версия FO76 DB", f"{u['latest']['tag']} (у вас {u['current']}): {u['latest']['url']}")
             new.add(key)
     except Exception as e:
         log.warning("проверка обновлений: %s", e)
@@ -73,13 +97,13 @@ def check(con: sqlite3.Connection) -> None:
             for p in patches:
                 key = f"steamnews:{p['gid']}"
                 if key not in sent:
-                    send("Заметки к обновлению Fallout 76", f"{p['title']}\n{p['url'] or ''}".strip())
+                    _notify("steamnews", "Заметки к обновлению Fallout 76", f"{p['title']}\n{p['url'] or ''}".strip())
                     new.add(key)
         elif patches:
             new |= {f"steamnews:{p['gid']}" for p in patches}
             set_meta(con, "steam_notes_seeded", "1")
         if (b := steam.check_build(con)) and f"steambuild:{b['new']}" not in sent:
-            send("Игра обновилась", f"Сборка Steam {b['old']} → {b['new']}")
+            _notify("build", "Игра обновилась", f"Сборка Steam {b['old']} → {b['new']}")
             new.add(f"steambuild:{b['new']}")
     except Exception as e:
         log.warning("Steam: %s", e)
@@ -99,7 +123,7 @@ def check(con: sqlite3.Connection) -> None:
         key = f"event:{e['ext_key'] or e['id']}"
         if key not in sent:
             when = "идёт сейчас" if e["start"] <= now_s else f"начнётся {e['start'].replace('T', ' ')}"
-            send(title_ru(e["title"]) or e["title"], when + (f"\n{e['note']}" if e["note"] else "") + _minerva_text(con, e))
+            _notify("events", title_ru(e["title"]) or e["title"], when + (f"\n{e['note']}" if e["note"] else "") + _minerva_text(con, e))
             new.add(key)
         # 3. Вишлист: название предмета упомянуто в событии (например, в списке товаров Минервы)
         text = f"{e['title']} {e['note'] or ''}".lower()
@@ -107,7 +131,7 @@ def check(con: sqlite3.Connection) -> None:
             for name in filter(None, (w["name_en"], w["name_ru"])):
                 wkey = f"wish:{e['id']}:{name}"
                 if name.lower() in text and wkey not in sent:
-                    send("Предмет из вишлиста", f"{name} — {e['title']}")
+                    _notify("wishlist", "Предмет из вишлиста", f"{name} — {e['title']}")
                     new.add(wkey)
         # 4. Вишлист: схема продаётся у Минервы
         if e["kind"] == "minerva" and e["data"]:
@@ -117,11 +141,11 @@ def check(con: sqlite3.Connection) -> None:
                     " LEFT JOIN items i ON i.formid = m.formid WHERE m.sale = ?", (sale,)):
                 wkey = f"wish:{e['ext_key']}:{name}"
                 if wkey not in sent:
-                    send("Предмет из вишлиста у Минервы", f"{name} — {e['note'] or ''}")
+                    _notify("wishlist", "Предмет из вишлиста у Минервы", f"{name} — {e['note'] or ''}")
                     new.add(wkey)
 
     if new:
-        _mark(con, sent | new)
+        _mark(con, seq, new)
     check_rolls(con)
 
 
@@ -133,7 +157,7 @@ def check_rolls(con: sqlite3.Connection) -> int:
     for w, m in found:
         effects = " / ".join(s["en"] or s["text"] for s in m["slots"])
         where = "тайник" if m["container"] == "stash" else "инвентарь"
-        send(f"Нужный ролл: {w['name']}", f"{m['name']} — {names.get(m['character_id'], '?')}, {where}\n{effects}")
+        _notify("rolls", f"Нужный ролл: {w['name']}", f"{m['name']} — {names.get(m['character_id'], '?')}, {where}\n{effects}")
     return len(found)
 
 

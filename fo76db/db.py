@@ -220,6 +220,15 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE INDEX IF NOT EXISTS events_start ON events(start);
 
+-- Показанные уведомления: их забирает браузер (вкладка опрашивает /api/notifications)
+CREATE TABLE IF NOT EXISTS notifications (
+    id    INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts    TEXT NOT NULL,
+    kind  TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL,
+    body  TEXT NOT NULL DEFAULT ''
+);
+
 -- Схемы распродаж Минервы (falloutbuilds.com), перезаписываются при обновлении событий
 CREATE TABLE IF NOT EXISTS minerva_plans (
     sale    INTEGER NOT NULL,

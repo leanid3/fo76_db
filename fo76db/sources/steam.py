@@ -9,6 +9,7 @@ import html
 import json
 import re
 
+from .. import features
 from . import net
 
 APPID = "1151340"
@@ -17,6 +18,7 @@ UA = {"User-Agent": "Mozilla/5.0 (fo76db)"}
 
 
 def _get(url: str) -> dict:
+    features.require("steam")
     return json.loads(net.get(url, UA, timeout=30))
 
 
@@ -75,6 +77,7 @@ def merge_achievements(percents: list[dict], page: list[dict]) -> list[dict]:
 
 def fetch_achievements() -> list[dict]:
     percents = parse_achievement_percents(_get(f"{API}/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid={APPID}"))
+    features.require("steam")
     page = parse_achievement_page(net.get(f"https://steamcommunity.com/stats/{APPID}/achievements/?l=russian", UA, timeout=30))
     if not page:
         raise ValueError("на странице достижений не найдено ни одной строки (вёрстка изменилась?)")

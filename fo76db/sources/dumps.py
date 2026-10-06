@@ -20,6 +20,7 @@ import urllib.request
 from pathlib import Path
 from typing import Iterator
 
+from .. import features
 from ..db import DATA
 
 log = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ def _check_url(url: str) -> None:
 
 def _open(url: str):
     """Открыть адрес с повторами (обрыв, 5xx, лимит GitHub 403/429 — ждём и пробуем снова); 4xx кроме лимита — сразу ошибка."""
+    features.require("dumps")
     _check_url(url)
     headers = {"User-Agent": "fo76db", "Accept": "application/vnd.github+json"}
     if os.environ.get("GITHUB_TOKEN") and url.startswith("https://api.github.com/"):

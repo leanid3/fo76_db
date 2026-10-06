@@ -91,8 +91,10 @@
   {% elif not o.plans and not o.minerva %}
   <p class="muted">В списках добычи и в мире не встречается. Обычно это награда, которую выдаёт скрипт: квест, ранг сезона, Atom Shop, набор Fallout 1st.</p>
   {% endif %}
+  {% if feat('item.wiki') %}
   <h3 style="margin-bottom:4px">Вики <a href="#" id="wiki-refresh" class="small" title="Перечитать страницы, минуя кэш">⟳</a></h3>
   <div id="wiki" class="small muted">Загрузка…</div>
+  {% endif %}
 </div>
 
 {% if recipes %}
@@ -154,7 +156,9 @@ async function loadWiki(refresh) {
     el.innerHTML = parts.join("");
   } catch (e) { el.textContent = "Не удалось загрузить: " + e.message; }
 }
-loadWiki(false);
-document.getElementById("wiki-refresh").onclick = e => { e.preventDefault(); loadWiki(true); };
+if (document.getElementById("wiki")) {
+  loadWiki(false);
+  document.getElementById("wiki-refresh").onclick = e => { e.preventDefault(); loadWiki(true); };
+}
 </script>
 {% endblock %}

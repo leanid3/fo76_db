@@ -11,6 +11,7 @@ import html
 import re
 import urllib.request
 
+from .. import features
 from .dates import nearest_year
 
 BASE = "https://www.falloutbuilds.com/fo76"
@@ -25,6 +26,7 @@ SUPER_RE = re.compile(r"Super Sale.*?sales ([\d, and]+)", re.I | re.S)
 
 
 def _get(url: str) -> str:
+    features.require("falloutbuilds")
     with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=30) as r:
         return r.read().decode("utf-8", "replace")
 

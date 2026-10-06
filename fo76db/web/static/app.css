@@ -24,6 +24,10 @@ label.chk { display: inline-flex; gap: 6px; align-items: center; color: var(--mu
 .muted { color: var(--muted); } .small { font-size: 12px; }
 .counter { color: var(--muted); margin-left: auto; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; margin-bottom: 14px; }
+.grid3 { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; }
+.feat { display: flex; gap: 8px; align-items: flex-start; }
+.feat input { margin-top: 3px; }
+.feat.off b { color: var(--muted); text-decoration: line-through; }
 .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; }
 table.kv { border-collapse: collapse; } table.kv td { padding: 3px 14px 3px 0; vertical-align: top; } table.kv td:first-child { color: var(--muted); white-space: nowrap; }
 table.list { border-collapse: collapse; width: 100%; } table.list th, table.list td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); }

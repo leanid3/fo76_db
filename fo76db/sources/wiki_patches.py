@@ -9,6 +9,7 @@ import json
 import re
 import urllib.request
 
+from .. import features
 from .dates import english_date
 
 API = "https://fallout.fandom.com/api.php?action=parse&page=Fallout_76_patches&prop=wikitext&format=json"
@@ -35,6 +36,7 @@ def _date(text: str) -> str | None:
 
 def fetch_patches() -> list[dict]:
     """[{version, update, cycle, date}] для PC-версий (или общих для всех платформ)."""
+    features.require("wiki")
     req = urllib.request.Request(API, headers={"User-Agent": "fo76db/0.1"})
     with urllib.request.urlopen(req, timeout=60) as r:
         text = json.loads(r.read())["parse"]["wikitext"]["*"]

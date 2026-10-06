@@ -16,6 +16,8 @@
 | Где лежит в мире | `tabular.*_LOC.csv` fo76-dumps (LVLI, WEAP, ARMO, MISC, FLOR) |
 | «Как получить» (текст) | Страница предмета на [fallout.fandom.com](https://fallout.fandom.com), запасной — [fallout.wiki](https://fallout.wiki); разделы Locations / Vendors / Obtaining. Русская — [fallout.fandom.com/ru](https://fallout.fandom.com/ru): «Описание», «Местонахождение» |
 
+Внешние сервисы (Steam, falloutbuilds.com, Fallout Wiki, NukaCrypt, GitHub) можно выключить в «Настройки → Разделы и сервисы» (`data/features.json`): источник тогда не опрашивается, прежние данные остаются.
+
 Пути игры (папка `Data`, ini, конфиг IOM, бэкапы, папка модов) определяются автоматически (`fo76db/gamepaths.py`: Steam на Windows/Linux/Flatpak, Proton, Xbox / Microsoft Store, Bethesda.net) и меняются в «Настройки → Пути игры» (`data/paths.json`). Порядок приоритета: `FO76DB_GAME_DATA` → `data/paths.json` → `config.toml` → автоопределение. Выгрузки (`inventory`, `legendary_mods`) по умолчанию берутся из папки `Data`; дополнительные файлы и шаблоны glob задаются в `config.toml` (см. `config.toml.example`).
 
 ## Импорт инвентаря

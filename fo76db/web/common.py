@@ -9,12 +9,15 @@ from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from .. import db, mods
+from .. import db, features, mods
 
 HERE = Path(__file__).parent
 
 
 templates = Jinja2Templates(directory=HERE / "templates")
+templates.env.globals["feat"] = features.on                        # {% if feat('events.online') %}
+templates.env.globals["hid"] = lambda k: "" if features.on(k) else "hidden"  # <div {{ hid('events.online') }}>
+templates.env.tests["navlink"] = lambda link: features.path_on(link[0])      # пункты меню отключённых страниц
 
 
 LOOPBACK = ("127.0.0.1", "::1", "localhost")
@@ -98,6 +101,9 @@ def layout_of(request: Request) -> str:
 
 
 def page(request: Request, name: str, **ctx) -> HTMLResponse:
+    pid = features.page_for_path(request.url.path)
+    if not features.page_on(pid):  # вкладка выключена в «Настройки → Разделы и сервисы»
+        name, ctx = "disabled.html", {"page_label": features.PAGES[pid][0]}
     c = con()
     ctx.update(
         meta={r[0]: r[1] for r in c.execute("SELECT key, value FROM meta")},

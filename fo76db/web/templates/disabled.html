@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Раздел отключён — FO76 DB{% endblock %}
+{% block main %}
+<h1>Раздел «{{ page_label }}» отключён</h1>
+<div class="card">
+  <p>Вы сами выключили эту вкладку, поэтому в меню её нет. Данные никуда не делись.</p>
+  <p><a class="btn" href="/settings#features">Включить в настройках</a></p>
+</div>
+{% endblock %}

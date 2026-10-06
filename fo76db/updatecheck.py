@@ -1,6 +1,6 @@
 """Проверка новой версии FO76 DB: последний релиз на GitHub против `__version__`. Ничего не скачивает и не ставит — только предлагает.
 
-Запрос — раз в 6 часов (после ошибки — раз в час), результат лежит в `meta`. Отключается `update_check = false` в config.toml.
+Запрос — раз в 6 часов (после ошибки — раз в час), результат лежит в `meta`. Отключается в «Настройки → Разделы и сервисы» или `update_check = false` в config.toml.
 Для приватного репозитория без `GITHUB_TOKEN` GitHub отвечает 404: это не ошибка, обновлений просто не видно.
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ import os
 import re
 import time
 
-from . import __version__, config
+from . import __version__, features
 from .db import get_meta, set_meta
 from .sources import net
 
@@ -28,7 +28,7 @@ def parse(version: str) -> tuple[int, ...] | None:
 
 
 def enabled() -> bool:
-    return bool(config.load().get("update_check", True))
+    return features.service_on("updates")
 
 
 def _fetch() -> dict | None:

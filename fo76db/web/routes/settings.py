@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 
-from ... import applog, config, filepick, gamepaths, iomconfig, maintenance, mods, tasks, updatecheck
+from ... import applog, config, features, filepick, gamepaths, iomconfig, maintenance, mods, tasks, updatecheck
 from ..common import (_local,
                       _need_local, con, page)
 
@@ -53,6 +53,34 @@ def api_paths_save(request: Request, body: dict = Body(...)):
             vals[k] = v
     config.save_paths(vals)
     return _paths_info()
+
+
+@router.get("/api/notifications")
+def api_notifications(after: int | None = None):
+    """Уведомления для браузера. Без `after` — только текущий последний номер (старое не показывается);
+    с `after` — всё новее этого номера."""
+    c = con()
+    if after is None:
+        return {"last": c.execute("SELECT coalesce(max(id), 0) FROM notifications").fetchone()[0], "items": []}
+    rows = c.execute("SELECT id, ts, kind, title, body FROM notifications WHERE id > ? ORDER BY id LIMIT 20", (after,)).fetchall()
+    return {"last": rows[-1]["id"] if rows else after, "items": [dict(r) for r in rows]}
+
+
+@router.get("/api/features")
+def api_features():
+    """Вкладки, блоки страниц и внешние сервисы с текущим состоянием (включено/выключено)."""
+    return features.describe()
+
+
+@router.post("/api/features")
+def api_features_save(request: Request, body: dict = Body(...)):
+    """Изменить переключатели: {"page:events": false, "service:steam": true, ...}. Только с этого компьютера."""
+    _need_local(request)
+    try:
+        features.save(body)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return features.describe()
 
 
 def _network_info(request: Request) -> dict:

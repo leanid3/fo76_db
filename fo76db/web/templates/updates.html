@@ -2,7 +2,7 @@
 {% block title %}Обновления — FO76 DB{% endblock %}
 {% block main %}
 <h1>Что добавляли в обновлениях</h1>
-<div class="card" style="margin-bottom:16px">
+<div class="card" style="margin-bottom:16px" {{ hid('updates.steam') }}>
   <h2 style="margin-top:0">Update Notes из Steam</h2>
   {% if build %}<div class="small muted">Ваша сборка: <b>{{ build.buildid }}</b>{% if build.updated %}, обновлена {{ build.updated.replace('T', ' ') }}{% endif %} · {{ '%.1f'|format(build.size / 1e9) }} ГБ</div>{% endif %}
   <ul class="small" style="margin:6px 0 0;padding-left:18px">

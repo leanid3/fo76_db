@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 
-from . import config, db, events, notify, steam
+from . import config, db, events, features, notify, steam
 from .importers import inventory
 
 log = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ def run(interval: float = 5.0) -> None:
                     notify.check(db.connect())
                 except Exception as e:
                     log.warning("уведомления: %s", e)
-            if time.time() - last_sample > steam.SAMPLE_EVERY:
+            if time.time() - last_sample > steam.SAMPLE_EVERY and features.service_on("steam"):
                 last_sample = time.time()
                 try:
                     steam.sample_online(db.connect())

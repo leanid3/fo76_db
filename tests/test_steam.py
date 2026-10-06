@@ -64,7 +64,7 @@ def test_refresh_survives_network_error(con, monkeypatch):
 
 def test_notify_seeds_old_patches_silently(con, monkeypatch):
     sent = []
-    monkeypatch.setattr(notify, "send", lambda t, b: sent.append(t))
+    monkeypatch.setattr(notify, "send", lambda t, b, k="": sent.append(t))
     monkeypatch.setattr(notify.dumps, "list_releases", lambda: [])
     monkeypatch.setattr(notify.updatecheck, "refresh", lambda c: None)
     monkeypatch.setattr(notify.updatecheck, "info", lambda c: {"latest": None, "available": False})

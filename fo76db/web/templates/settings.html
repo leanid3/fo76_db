@@ -1,7 +1,17 @@
 {% extends "base.html" %}
 {% block title %}Настройки — FO76 DB{% endblock %}
 {% block main %}
-<h1>Оформление</h1>
+<h1>Настройки</h1>
+<div class="tabs" id="stabs" role="tablist">
+  <button data-stab="look" title="Цвета, шрифт и расположение меню">☼ Оформление</button>
+  <button data-stab="features" title="Какие вкладки, блоки и внешние сервисы включены">⚙ Разделы и сервисы</button>
+  <button data-stab="game" title="Где лежит игра и какие моды найдены">🎮 Игра и моды</button>
+  <button data-stab="profiles" title="Подписи и цвета персонажей, теги предметов">☺ Персонажи и теги</button>
+  <button data-stab="access" title="Открыть утилиту на телефоне или другом компьютере">⇄ Доступ по сети</button>
+  <button data-stab="service" title="Проверка окружения, копия базы, журнал">✚ Обслуживание</button>
+</div>
+
+<section data-stab="look" hidden>
 <div class="card">
   <h2 style="margin-top:0">Стиль (цвета и шрифт)</h2>
   <p class="muted small">Хранится в браузере (cookie), меняется сразу. По умолчанию — «Убежище».</p>
@@ -10,7 +20,35 @@
   <p class="muted small">Применяется после перезагрузки страницы (делается автоматически). По умолчанию — «Pip-Boy».</p>
   <div class="themes" id="layouts"></div>
 </div>
-<h1 style="margin-top:22px">Пути игры</h1>
+</section>
+
+<section data-stab="features" hidden id="features">
+  <p class="muted small">Выключенная вкладка пропадает из меню, выключенный блок — со страницы, выключенный внешний сервис — перестаёт получать данные из интернета.
+    Уже собранные данные остаются, включить обратно можно в любой момент. Изменения применяются сразу; настройки хранятся на этом компьютере.</p>
+  <div class="toolbar" style="margin-bottom:10px">
+    <button id="f-offline" title="Выключить все внешние сервисы: утилита перестанет ходить в интернет, всё локальное работает как раньше">Работать без интернета</button>
+    <button id="f-online" title="Включить все внешние сервисы">Включить все сервисы</button>
+    <span class="small" id="f-msg" aria-live="polite"></span>
+  </div>
+  <h2>Внешние сервисы</h2>
+  <p class="muted small">Откуда утилита берёт данные. Ничего, кроме обычных запросов на чтение, на эти адреса не отправляется.</p>
+  <div id="f-services" class="grid2"></div>
+  <h2>Вкладки</h2>
+  <p class="muted small">«Главная» и «Настройки» отключить нельзя. Данные выключенной вкладки доступны другим страницам и API.</p>
+  <div class="card"><div id="f-pages" class="grid3"></div></div>
+  <h2>Уведомления</h2>
+  <p class="muted small">Всплывающие уведомления рабочего стола присылает работающий <code>watch</code>. Выключенный тип молчит, а то, что случилось за это время, при включении не придёт.</p>
+  <div class="card" id="bn-card"><b>Уведомления в браузере</b>
+    <p class="muted small">Дополнение к рабочему столу: пока вкладка с утилитой открыта (хотя бы фоновая), она раз в 30 секунд забирает новые уведомления и показывает их средствами браузера. Включается отдельно в каждом браузере; работает на <code>localhost</code> и по HTTPS.</p>
+    <p><span id="bn-state" class="small"></span></p>
+    <button type="button" id="bn-toggle"></button> <button type="button" id="bn-test">Проверить</button></div>
+  <div class="card"><div id="f-notify" class="grid3"></div></div>
+  <h2>Блоки на страницах</h2>
+  <div class="card"><div id="f-sections"></div></div>
+</section>
+
+<section data-stab="game" hidden>
+  <h2 style="margin-top:0">Пути игры</h2>
 <div class="card">
   <p class="muted small">Определяются автоматически: Steam (Windows, Linux, Flatpak), Steam Proton, Xbox / Microsoft Store, Bethesda.net.
     Пустое поле — автоопределение. «Обзор…» открывает окно выбора папки или файла. Утилита только читает эти папки; исключение — запись конфига IOM из редактора (с бэкапом и подтверждением).
@@ -19,9 +57,11 @@
   <div id="p-found" class="muted small">Поиск…</div>
   <div class="toolbar" style="margin:8px 0 14px">
     <button id="p-refresh" title="Искать установки игры заново">Найти заново</button>
-    <button id="p-load" title="Загрузить пути из JSON-файла">Загрузить JSON…</button>
-    <button id="p-export" title="Сохранить текущие пути в JSON-файл">Скачать JSON</button>
-    <input type="file" id="p-file" accept=".json,application/json" hidden>
+    <details style="display:inline-block"><summary class="muted small">перенос между компьютерами</summary>
+      <button id="p-load" title="Загрузить пути из JSON-файла">Загрузить JSON…</button>
+      <button id="p-export" title="Сохранить текущие пути в JSON-файл">Скачать JSON</button>
+      <input type="file" id="p-file" accept=".json,application/json" hidden>
+    </details>
   </div>
   <table class="list" id="p-table"></table>
   <div class="toolbar" style="margin-top:10px">
@@ -29,35 +69,17 @@
     <span class="small" id="p-msg"></span>
   </div>
 </div>
-<h1 style="margin-top:22px" id="network">Доступ по сети</h1>
-<div class="card">
-  <p class="muted small">Телефон (PWA) и другие компьютеры подключаются по адресу этого компьютера. Настройка видна и меняется только на самом компьютере.
-    Адрес сервера меняется после перезапуска <code>serve</code>; токен — сразу. PWA на телефоне требует HTTPS (<code>docs/pwa.md</code>).</p>
-  <div class="themes" id="n-mode">
-    <label class="chk"><input type="radio" name="n-m" value="local"> Только этот компьютер <span class="muted small">(127.0.0.1)</span></label>
-    <label class="chk"><input type="radio" name="n-m" value="lan"> Локальная сеть <span class="muted small">(0.0.0.0, вход по токену)</span></label>
-  </div>
-  <div id="n-lan" hidden>
-    <div class="toolbar" style="margin-top:10px">
-      <input id="n-token" readonly style="min-width:300px;font-family:monospace" title="Токен доступа">
-      <button id="n-new" title="Создать новый токен; старые входы перестанут работать">Новый токен</button>
-    </div>
-    <div class="small" id="n-links" style="margin-top:8px"></div>
-  </div>
-  <div class="toolbar" style="margin-top:10px">
-    <button class="primary" id="n-save">Сохранить</button>
-    <span class="small" id="n-msg"></span>
-  </div>
-</div>
-<h1 style="margin-top:22px" id="mods">Моды</h1>
+  <h2 id="mods" style="margin-top:22px">Моды</h2>
 <div class="card">
   <p class="muted small">Страницы, которым нужен мод, предупреждают об этом, если его файла нет. Проверка делается по путям выше;
     после установки мода или смены папки нажмите «Проверить / найти».</p>
   <table class="list" id="m-table"></table>
   <div class="toolbar" style="margin-top:10px"><button class="primary" id="m-refresh">Проверить / найти</button><span class="small" id="m-msg"></span></div>
 </div>
-<h1 style="margin-top:22px">Профили и теги</h1>
-<p class="muted small">Имена из выгрузки Invent-O-Matic не меняются и по-прежнему ищутся. Здесь задаются только подписи и цвета для отображения.</p>
+</section>
+
+<section data-stab="profiles" hidden>
+  <p class="muted small">Имена из выгрузки Invent-O-Matic не меняются и по-прежнему ищутся. Здесь задаются только подписи и цвета для отображения.</p>
 <div class="grid2">
   <div class="card">
     <h2 style="margin-top:0">Персонажи</h2>
@@ -78,10 +100,35 @@
     </div>
   </div>
 </div>
-<h1 style="margin-top:22px">Диагностика и копия базы</h1>
+</section>
+
+<section data-stab="access" hidden id="network">
+<div class="card" id="network-box">
+  <p class="muted small">Телефон (PWA) и другие компьютеры подключаются по адресу этого компьютера. Настройка видна и меняется только на самом компьютере.
+    Адрес сервера меняется после перезапуска <code>serve</code>; токен — сразу. PWA на телефоне требует HTTPS (<code>docs/pwa.md</code>).</p>
+  <div class="themes" id="n-mode">
+    <label class="chk"><input type="radio" name="n-m" value="local"> Только этот компьютер <span class="muted small">(127.0.0.1)</span></label>
+    <label class="chk"><input type="radio" name="n-m" value="lan"> Локальная сеть <span class="muted small">(0.0.0.0, вход по токену)</span></label>
+  </div>
+  <div id="n-lan" hidden>
+    <div class="toolbar" style="margin-top:10px">
+      <input id="n-token" readonly style="min-width:300px;font-family:monospace" title="Токен доступа">
+      <button id="n-new" title="Создать новый токен; старые входы перестанут работать">Новый токен</button>
+    </div>
+    <div class="small" id="n-links" style="margin-top:8px"></div>
+  </div>
+  <div class="toolbar" style="margin-top:10px">
+    <button class="primary" id="n-save">Сохранить</button>
+    <span class="small" id="n-msg"></span>
+  </div>
+</div>
+</section>
+
+<section data-stab="service" hidden>
+  <h2 style="margin-top:0">Диагностика и копия базы</h2>
 <div class="card" id="diag-card">
   <p class="muted small">Проверка окружения: игра, моды, 7-Zip, база, доступ из сети. Ничего не меняет.
-    Копия базы (теги, вишлист, роллы, чек-лист, история инвентаря) собирается через SQLite, а не копированием файла: база работает в режиме WAL.</p>
+    Копия базы содержит ваши теги, вишлист, роллы, чек-лист и историю инвентаря; её можно скачать или сохранить в папку data/db-backups (хранятся 10 последних).</p>
   <div class="toolbar">
     <button id="diag-run">Проверить</button>
     <a class="btn" href="/api/backup" id="backup-dl" title="Скачать согласованную копию базы (.sqlite). Только с этого компьютера">⭳ Скачать копию базы</a>
@@ -90,7 +137,7 @@
   <table class="list" id="diag" aria-live="polite"></table>
   <p class="small" id="upd-line" aria-live="polite" style="margin-top:10px">Версия {{ version }}. <button id="upd-check" title="Спросить GitHub, не вышла ли новая версия">Проверить обновления</button> <span id="upd-res" class="muted"></span></p>
 </div>
-<h1 style="margin-top:22px">Журнал приложения</h1>
+  <h2 style="margin-top:22px">Журнал приложения</h2>
 <div class="card">
   <div class="toolbar">
     <input type="search" id="log-q" placeholder="Фильтр по тексту" style="min-width:200px">
@@ -106,10 +153,73 @@
   </div>
   <pre class="applog" id="log">Загрузка…</pre>
 </div>
+</section>
 {% endblock %}
 {% block scripts %}
 <script nonce="{{ csp_nonce }}">
 const DEFAULT_COLOR = "#4fd18b";
+// ---------- вкладки настроек (#look, #features, #game, #profiles, #access, #service; старые #mods и #network тоже работают) ----------
+const STAB_ALIAS = { mods: "game", network: "access" };
+function showTab(id) {
+  id = STAB_ALIAS[id] || id;
+  if (!document.querySelector(`section[data-stab=${id}]`)) id = "look";
+  for (const b of document.querySelectorAll("#stabs [data-stab]")) b.classList.toggle("primary", b.dataset.stab === id);
+  for (const el of document.querySelectorAll("section[data-stab]")) el.hidden = el.dataset.stab !== id;
+  history.replaceState(null, "", "#" + id);
+}
+document.getElementById("stabs").onclick = e => { const t = e.target.closest("[data-stab]")?.dataset.stab; if (t) showTab(t); };
+showTab(location.hash.slice(1));
+window.addEventListener("hashchange", () => showTab(location.hash.slice(1)));
+
+// ---------- разделы и сервисы ----------
+let feat = null;
+function showFeatures(f) {
+  feat = f;
+  const name = k => f.services.find(s => s.key === "service:" + k)?.label || k;
+  document.getElementById("f-services").innerHTML = f.services.map(s => `<div class="card"><label class="feat ${s.on ? "" : "off"}">
+      <input type="checkbox" data-k="${s.key}" ${s.on ? "checked" : ""}><span><b>${esc(s.label)}</b><br><span class="small">${esc(s.why)}</span><br>
+      <span class="muted small">${s.on ? "Адреса: " + s.hosts.map(esc).join(", ") : "Выключено: " + esc(s.off_effect)}</span></span></label></div>`).join("");
+  document.getElementById("f-pages").innerHTML = f.pages.map(p => `<label class="feat ${p.on ? "" : "off"}" title="${esc(p.hint)}">
+      <input type="checkbox" data-k="${p.key}" ${p.on ? "checked" : ""}><span><b>${esc(p.label)}</b><br><span class="muted small">${esc(p.hint)}</span></span></label>`).join("");
+  document.getElementById("f-notify").innerHTML = f.notifications.map(n => `<label class="feat ${n.on ? "" : "off"}">
+      <input type="checkbox" data-k="${n.key}" ${n.on ? "checked" : ""}><span><b>${esc(n.label)}</b><br><span class="muted small">${esc(n.hint)}</span></span></label>`).join("");
+  const byPage = {};
+  for (const s of f.sections) (byPage[s.page] ||= []).push(s);
+  document.getElementById("f-sections").innerHTML = Object.entries(byPage).map(([pg, list]) => `<h3 style="margin:10px 0 4px">${esc(f.page_names[pg] || pg)}</h3>
+    <div class="grid3">${list.map(s => {
+      const svcOff = s.service && !f.services.find(x => x.key === "service:" + s.service).on;
+      return `<label class="feat ${s.on && !svcOff ? "" : "off"}"><input type="checkbox" data-k="${s.key}" ${s.on ? "checked" : ""}>
+        <span><b>${esc(s.label)}</b><br><span class="muted small">${esc(s.hint)}${svcOff ? ` · скрыт: выключен сервис «${esc(name(s.service))}»` : ""}</span></span></label>`;
+    }).join("")}</div>`).join("");
+}
+async function saveFeatures(values, reload) {
+  const msg = document.getElementById("f-msg");
+  try { showFeatures(await post("/api/features", values)); msg.textContent = reload ? "Сохранено, обновляю меню…" : "Сохранено ✔"; if (reload) setTimeout(() => location.reload(), 400); }
+  catch (e) { msg.textContent = e.message; api("/api/features").then(showFeatures); }
+}
+document.getElementById("features").onchange = e => {
+  const k = e.target.dataset?.k;
+  if (k) saveFeatures({ [k]: e.target.checked }, k.startsWith("page:"));
+};
+const BN_TEXT = { unsupported: "Браузер не поддерживает уведомления на этом адресе.", denied: "Запрещено в настройках сайта браузера — разрешите вручную.",
+                  on: "Включено в этом браузере ✔", off: "Выключено в этом браузере." };
+function showBn() {
+  const st = BN.state();
+  document.getElementById("bn-state").textContent = BN_TEXT[st];
+  const t = document.getElementById("bn-toggle");
+  t.textContent = st === "on" ? "Выключить" : "Включить"; t.disabled = st === "unsupported" || st === "denied";
+  document.getElementById("bn-test").disabled = st !== "on";
+}
+document.getElementById("bn-toggle").onclick = async () => {
+  try { BN.state() === "on" ? BN.disable() : await BN.enable(); } catch (e) { toast(e.message, "err"); }
+  showBn();
+};
+document.getElementById("bn-test").onclick = () => BN.show("FO76 DB", "Проверка: уведомления в браузере работают", "fo76-test");
+showBn();
+document.getElementById("f-offline").onclick = () => saveFeatures(Object.fromEntries(feat.services.map(s => [s.key, false])), false);
+document.getElementById("f-online").onclick = () => saveFeatures(Object.fromEntries(feat.services.map(s => [s.key, true])), false);
+api("/api/features").then(showFeatures).catch(e => { document.getElementById("f-msg").textContent = e.message; });
+
 function row(cells) { return "<tr>" + cells.map(c => `<td>${c}</td>`).join("") + "</tr>"; }
 async function save(url, body, btn) {
   try { await post(url, body); btn.textContent = "✔"; setTimeout(() => btn.textContent = "Сохранить", 1200); }
@@ -300,7 +410,7 @@ async function saveNet(extra) {
 document.getElementById("n-mode").onchange = e => { if (e.target.name === "n-m") document.getElementById("n-lan").hidden = e.target.value !== "lan"; };
 document.getElementById("n-save").onclick = () => saveNet({});
 document.getElementById("n-new").onclick = () => saveNet({ new_token: true, mode: "lan" });
-api("/api/network").then(showNet).catch(() => { const h = document.getElementById("network"); h.hidden = h.nextElementSibling.hidden = true; });
+api("/api/network").then(showNet).catch(() => { document.getElementById("network-box").innerHTML = '<p class="muted">Доступ по сети настраивается только на самом компьютере, где запущена утилита.</p>'; });
 
 // ---------- моды ----------
 const MOD_STATE = {ok: '<span class="yes">✔ найден</span>', empty: '<span class="warn-t">● файл пуст — войдите в игру с модом</span>', missing: '<span class="no">✖ не найден</span>'};
@@ -343,7 +453,7 @@ document.getElementById("upd-check").onclick = e => busy(e.currentTarget, async 
   try {
     const u = await api("/api/update?refresh=true");
     out.replaceChildren();
-    if (!u.enabled) out.textContent = "Проверка отключена (update_check = false в config.toml).";
+    if (!u.enabled) out.textContent = "Проверка отключена: сервис выключен во вкладке «Разделы и сервисы» (или update_check = false в config.toml).";
     else if (u.error) out.textContent = "Не удалось проверить: " + u.error;
     else if (u.newer) out.append("Вышла ", Object.assign(document.createElement("a"), { href: u.latest.url, target: "_blank", rel: "noopener", textContent: u.latest.tag }), ".");
     else out.textContent = "Установлена последняя версия.";

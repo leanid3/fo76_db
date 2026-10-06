@@ -8,7 +8,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from . import __version__, config, db, gamepaths
+from . import __version__, config, db, features, gamepaths
 
 BACKUP_DIR = db.DATA / "db-backups"
 PREFIX = "fo76-"
@@ -96,10 +96,13 @@ def doctor() -> list[dict]:
         out.append(_row(label, True if p.exists() else None, str(p) + ("" if p.exists() else " — пока нет")))
 
     from .sources import steam as steam_src
-    try:
-        out.append(_row("Steam API", True, f"api.steampowered.com отвечает, онлайн сейчас: {steam_src.fetch_players()}"))
-    except Exception as e:  # noqa: BLE001
-        out.append(_row("Steam API", None, f"не отвечает: {e}", "Update Notes и график онлайна не обновятся"))
+    if not features.service_on("steam"):
+        out.append(_row("Steam API", None, "сервис отключён в настройках"))
+    else:
+        try:
+            out.append(_row("Steam API", True, f"api.steampowered.com отвечает, онлайн сейчас: {steam_src.fetch_players()}"))
+        except Exception as e:  # noqa: BLE001
+            out.append(_row("Steam API", None, f"не отвечает: {e}", "Update Notes и график онлайна не обновятся"))
 
     host, token = cfg["host"], cfg.get("token")
     if host not in config.LOOPBACK_HOSTS:

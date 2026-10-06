@@ -11,7 +11,7 @@
     <h2 style="margin-top:0">Сегодня</h2>
     <div id="today" class="muted">Загрузка…</div>
   </div>
-  <div class="card">
+  <div class="card" {{ hid('events.dailyops') }}>
     <h2 style="margin-top:0">Daily Ops</h2>
     <div id="dailyops" class="muted">Загрузка…</div>
     <details id="do-edit">
@@ -31,6 +31,7 @@
   </div>
 </div>
 
+<div {{ hid('events.checklist') }}>
 <h2>Ежедневки</h2>
 <div class="toolbar"><span class="muted small" id="daily-sum"></span>
   <span class="colpick"><button id="who-btn" title="Каких персонажей показывать в чек-листе">☰ Персонажи</button>
@@ -46,13 +47,14 @@
     <p class="muted small">Отметки сбрасываются сами в момент сброса дня или недели в игре. ✕ у пункта — удалить пункт.</p>
   </details>
 </div>
+</div>
 
 <div class="grid2" style="margin-top:16px">
   <div class="card">
     <h2 style="margin-top:0">Скоро</h2>
     <div id="soon" class="muted">Загрузка…</div>
   </div>
-  <div class="card">
+  <div class="card" {{ hid('events.minerva') }}>
     <h2 style="margin-top:0">Минерва</h2>
     <div id="minerva" class="muted">Загрузка…</div>
     <div class="toolbar" style="margin-top:6px"><label class="chk"><input type="checkbox" id="m-unknown"> только не изученные</label>
@@ -61,6 +63,7 @@
   </div>
 </div>
 
+<div {{ hid('events.online') }}>
 <h2>Онлайн в Steam</h2>
 <div class="card">
   <div class="toolbar" style="margin:0 0 6px">
@@ -71,10 +74,13 @@
   <p class="muted small" style="margin:6px 0 0">Только игроки Steam (без Xbox и Bethesda.net). Steam не хранит историю: точки копит <code>watch</code> раз в 15 минут, график начинается с первого запуска. Полосы сверху — события из календаря.</p>
 </div>
 
+</div>
+<div {{ hid('events.heatmap') }}>
 <h2>Когда играют</h2>
 <div class="card">
   <div id="heat" class="muted">Загрузка…</div>
   <p class="muted small" style="margin:6px 0 0">Средний онлайн Steam по дням недели и часам (ваше местное время) из собственных замеров; нужна неделя данных.</p>
+</div>
 </div>
 
 <h2>Все события</h2>

@@ -9,7 +9,7 @@ import urllib.request
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from ... import events, gamepaths, steam
+from ... import events, features, gamepaths, steam
 from ...db import get_meta
 from ..common import EVENT_KINDS, con, page
 
@@ -146,6 +146,8 @@ _nukes: dict = {}
 @router.get("/api/nukes")
 def api_nukes():
     """Коды ракет с NukaCrypt, кэш 10 минут."""
+    if not features.service_on("nukacrypt"):
+        return {"disabled": True}
     if time.time() - _nukes.get("t", 0) > 600:
         try:
             req = urllib.request.Request("https://api.nukacrypt.com/api/codes", headers={"User-Agent": "fo76db"})

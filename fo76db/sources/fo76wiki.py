@@ -11,6 +11,7 @@ import json
 import re
 import urllib.parse
 
+from .. import features
 from . import net
 from .dates import english_date
 
@@ -36,6 +37,7 @@ DAILYOPS_FALLBACK = {
 
 def _get(url: str, timeout: float = 30) -> str:
     # обычные адреса страниц: `api.php?action=parse` без кэша на сервере отвечает до минуты
+    features.require("wiki")
     return net.get(url, UA, timeout)
 
 

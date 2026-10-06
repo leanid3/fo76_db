@@ -11,6 +11,7 @@ import re
 import sqlite3
 from zoneinfo import ZoneInfo
 
+from . import features
 from .db import get_meta, set_meta
 from .sources import falloutbuilds, fo76wiki
 
@@ -137,6 +138,8 @@ def refresh(con: sqlite3.Connection) -> dict:
                             [(sale, n, idx.get(n.lower())) for sale, names in minerva["plans"].items() for n in names])
         result["calendar"] = len(rows)
         result["minerva_plans"] = sum(len(v) for v in minerva["plans"].values())
+    except features.ServiceOff:
+        pass
     except Exception as e:
         result["errors"].append(f"falloutbuilds.com: {e}")
 
@@ -150,11 +153,15 @@ def refresh(con: sqlite3.Connection) -> dict:
         with con:
             _replace(con, "wiki", rows, None)
         result["seasons"] = len(rows)
+    except features.ServiceOff:
+        pass
     except Exception as e:
         result["errors"].append(f"fallout.wiki (сезоны): {e}")
 
     try:
         set_meta(con, "dailyops_vars", json.dumps(fo76wiki.fetch_dailyops()))
+    except features.ServiceOff:
+        pass
     except Exception as e:
         result["errors"].append(f"fallout.wiki (Daily Ops): {e}")
 
@@ -165,6 +172,8 @@ def refresh(con: sqlite3.Connection) -> dict:
 
 
 def refresh_if_stale(con: sqlite3.Connection) -> dict | None:
+    if not (features.service_on("falloutbuilds") or features.service_on("wiki")):
+        return None
     last = get_meta(con, "events_fetched")
     limit = RETRY_AFTER_ERROR if get_meta(con, "events_error") else REFRESH_EVERY
     if last and (dt.datetime.now() - dt.datetime.fromisoformat(last)).total_seconds() < limit:

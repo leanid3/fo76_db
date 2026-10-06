@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 
-from . import gamepaths
+from . import features, gamepaths
 from .db import get_meta, set_meta
 from .sources import steam
 
@@ -55,6 +55,9 @@ def sample_online(con: sqlite3.Connection) -> int:
 def refresh(con: sqlite3.Connection) -> dict:
     """Новости + замер онлайна + проверка сборки. Ошибка одного источника не мешает остальным."""
     result: dict = {"errors": []}
+    if not features.service_on("steam"):
+        result["build"] = (b := gamepaths.steam_build()) and b["buildid"]  # сборка читается из файла, сеть не нужна
+        return result | {"disabled": True}
     try:
         result |= refresh_news(con)
     except Exception as e:  # noqa: BLE001
@@ -78,6 +81,8 @@ def refresh(con: sqlite3.Connection) -> dict:
 
 def refresh_if_stale(con: sqlite3.Connection) -> dict | None:
     """Новости раз в час (после ошибки — через 15 мин); None — рано."""
+    if not features.service_on("steam"):
+        return None
     last = get_meta(con, "steam_fetched")
     limit = RETRY_AFTER_ERROR if get_meta(con, "steam_error") else NEWS_EVERY
     if last and (dt.datetime.now() - dt.datetime.fromisoformat(last)).total_seconds() < limit:

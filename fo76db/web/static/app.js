@@ -421,3 +421,36 @@ document.addEventListener("click", e => {
   const a = e.target.closest("a.back");
   if (a && document.referrer.startsWith(location.origin) && history.length > 1) { e.preventDefault(); history.back(); }
 });
+
+// ---------- уведомления в браузере (дополнение к desktop): вкладка раз в 30 с забирает новое из /api/notifications ----------
+const BN = {
+  on: () => { try { return localStorage.getItem("fo76_bn") === "1"; } catch (e) { return false; } },
+  state() {
+    if (!("Notification" in window)) return "unsupported";
+    if (Notification.permission === "denied") return "denied";
+    return Notification.permission === "granted" && BN.on() ? "on" : "off";
+  },
+  async enable() {
+    if (!("Notification" in window)) throw new Error("Браузер не поддерживает уведомления (нужен localhost или HTTPS)");
+    if (await Notification.requestPermission() !== "granted") throw new Error("Разрешение не выдано: проверьте настройки сайта в браузере");
+    localStorage.setItem("fo76_bn", "1");
+    localStorage.setItem("fo76_bn_last", String((await api("/api/notifications")).last));  // накопившееся не показываем
+    BN.start();
+  },
+  disable() { try { localStorage.removeItem("fo76_bn"); } catch (e) { /* без хранилища нечего выключать */ } },
+  show(title, body, tag) {
+    const n = new Notification(title, { body, tag, icon: "/static/icons/icon-192.png" });
+    n.onclick = () => { window.focus(); n.close(); };
+  },
+  async poll() {
+    if (BN.state() !== "on") return;
+    try {
+      const last = localStorage.getItem("fo76_bn_last");
+      const r = await api("/api/notifications" + (last === null ? "" : "?after=" + last));
+      for (const i of r.items) BN.show(i.title, i.body, "fo76-" + i.id);  // tag: та же вкладка/браузер не покажет дубль
+      localStorage.setItem("fo76_bn_last", String(r.last));
+    } catch (e) { /* сервер недоступен — попробуем в следующий раз */ }
+  },
+  start() { if (!BN.timer) { BN.timer = setInterval(BN.poll, 30000); BN.poll(); } },
+};
+document.addEventListener("DOMContentLoaded", () => { if (BN.state() === "on") BN.start(); });
