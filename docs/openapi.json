@@ -1413,6 +1413,44 @@
         ]
       }
     },
+    "/api/steam/achievements": {
+      "get": {
+        "summary": "Api Steam Achievements",
+        "operationId": "api_steam_achievements_api_steam_achievements_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
+    "/api/steam/heatmap": {
+      "get": {
+        "summary": "Api Steam Heatmap",
+        "operationId": "api_steam_heatmap_api_steam_heatmap_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "tags": [
+          "steam"
+        ]
+      }
+    },
     "/api/steam/build": {
       "get": {
         "summary": "Api Steam Build",

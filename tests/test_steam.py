@@ -13,10 +13,11 @@ DATA = Path(__file__).parent / "fixtures"
 @pytest.fixture
 def con():
     c = db.connect()
-    for t in ("steam_news", "online_samples", "meta", "events"):
+    for t in ("steam_news", "steam_achievements", "online_samples", "meta", "events"):
         c.execute(f"DELETE FROM {t}")
     c.commit()
-    return c
+    yield c
+    c.close()
 
 
 def test_parse_news():
@@ -90,9 +91,48 @@ def test_check_build(con, monkeypatch):
     assert con.execute("SELECT count(*) FROM events WHERE source = 'steam'").fetchone()[0] == 1
 
 
+PERCENTS = {"achievementpercentages": {"achievements": [
+    {"name": "ACHIEVEMENT_32", "percent": "86.5"}, {"name": "ACHIEVEMENT_1", "percent": "83.6"}, {"name": "ACHIEVEMENT_9", "percent": "1.2"}]}}
+
+
+def test_parse_achievements():
+    page = src.parse_achievement_page((DATA / "steam_achievements.html").read_text(encoding="utf-8"))
+    assert [p["title"] for p in page] == ["Настоящий смельчак", "День возрождения!", "Тихая & редкая"]
+    assert page[2]["descr"] == 'Условие "без условий"' and page[2]["percent"] == 1.2
+    merged = src.merge_achievements(src.parse_achievement_percents(PERCENTS), page)
+    assert [m["api_name"] for m in merged] == ["ACHIEVEMENT_32", "ACHIEVEMENT_1", "ACHIEVEMENT_9"]
+    # проценты не сошлись — технические имена не присваиваем
+    bad = {"achievementpercentages": {"achievements": [{"name": "A", "percent": "50"}] * 3}}
+    assert all(m["api_name"] is None for m in src.merge_achievements(src.parse_achievement_percents(bad), page))
+
+
+def test_refresh_achievements(con, monkeypatch):
+    page = src.parse_achievement_page((DATA / "steam_achievements.html").read_text(encoding="utf-8"))
+    monkeypatch.setattr(src, "fetch_achievements", lambda: src.merge_achievements(src.parse_achievement_percents(PERCENTS), page))
+    assert steam.refresh_achievements(con) == 3
+    assert steam.refresh_achievements(con) == 3  # повтор заменяет, а не дублирует
+    assert [a["percent"] for a in steam.achievements(con)] == [86.5, 83.6, 1.2]
+
+
+def test_heatmap(con):
+    h = steam.heatmap(con)
+    assert not h["ready"] and h["days"] == 0 and h["best"] == []
+    # 2026-10-05 — понедельник, 2026-10-11 — воскресенье
+    rows = [(f"2026-10-{d:02d}T20:00:00", 1000 + d) for d in range(5, 12)] + [("2026-10-05T03:00:00", 100)]
+    con.executemany("INSERT INTO online_samples VALUES (?, ?)", rows)
+    con.commit()
+    h = steam.heatmap(con)
+    assert h["ready"] and h["days"] == 7
+    assert h["cells"][0][20] == 1005 and h["cells"][6][20] == 1011 and h["cells"][0][3] == 100
+    assert h["best"][0] == {"weekday": 6, "hour": 20, "players": 1011}
+
+
 def test_steam_api(client, con, monkeypatch):
     con.execute("INSERT INTO online_samples VALUES (datetime('now', 'localtime'), 123)")
     con.commit()
     assert client.get("/api/steam/online?days=1").json()["now"] == 123
     assert client.get("/api/steam/news").status_code == 200
     assert client.get("/updates").status_code == 200
+    assert client.get("/achievements").status_code == 200
+    assert client.get("/api/steam/heatmap").json()["days"] == 1
+    assert client.get("/api/steam/achievements").status_code == 200

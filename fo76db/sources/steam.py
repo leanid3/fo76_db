@@ -5,6 +5,7 @@ steamdb.info закрыт Cloudflare, поэтому берутся сами API
 from __future__ import annotations
 
 import datetime as dt
+import html
 import json
 import re
 
@@ -47,6 +48,37 @@ def fetch_news(count: int = 40) -> list[dict]:
 
 def fetch_players() -> int:
     return parse_players(_get(f"{API}/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid={APPID}"))
+
+
+ROW_RE = re.compile(r'<div class="achievePercent">([\d.,]+)%</div>\s*<div class="achieveTxt">\s*<h3>(.*?)</h3>\s*<h5>(.*?)</h5>', re.S)
+
+
+def parse_achievement_percents(data: dict) -> list[dict]:
+    """[{api_name, percent}] — глобальный процент игроков по каждому достижению (по убыванию)."""
+    return [{"api_name": a["name"], "percent": float(a["percent"])}
+            for a in data.get("achievementpercentages", {}).get("achievements", [])]
+
+
+def parse_achievement_page(page: str) -> list[dict]:
+    """[{title, descr, percent}] со страницы steamcommunity.com/stats/<appid>/achievements (порядок — по убыванию процента)."""
+    return [{"title": html.unescape(t).strip(), "descr": html.unescape(d).strip(), "percent": float(p.replace(",", "."))}
+            for p, t, d in ROW_RE.findall(page)]
+
+
+def merge_achievements(percents: list[dict], page: list[dict]) -> list[dict]:
+    """Названия со страницы + технические имена API (нужны для личного прогресса). Обе выдачи отсортированы по проценту,
+    сопоставление по позиции принимается, только если число строк совпало, а проценты различаются не больше чем на 0,25
+    (два запроса идут в разное время и расходятся на 0,1), иначе api_name = None."""
+    ok = len(percents) == len(page) and all(abs(a["percent"] - b["percent"]) < 0.25 for a, b in zip(percents, page))
+    return [{"sort": i, "api_name": percents[i]["api_name"] if ok else None, **row} for i, row in enumerate(page)]
+
+
+def fetch_achievements() -> list[dict]:
+    percents = parse_achievement_percents(_get(f"{API}/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid={APPID}"))
+    page = parse_achievement_page(net.get(f"https://steamcommunity.com/stats/{APPID}/achievements/?l=russian", UA, timeout=30))
+    if not page:
+        raise ValueError("на странице достижений не найдено ни одной строки (вёрстка изменилась?)")
+    return merge_achievements(percents, page)
 
 
 def parse_appmanifest(text: str) -> dict | None:

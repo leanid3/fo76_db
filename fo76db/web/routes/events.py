@@ -10,6 +10,7 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from ... import events, gamepaths, steam
+from ...db import get_meta
 from ..common import EVENT_KINDS, con, page
 
 router = APIRouter()
@@ -60,6 +61,21 @@ def api_steam_news(limit: int = 10, all: bool = False):
 @router.get("/api/steam/online")
 def api_steam_online(days: int = 7):
     return steam.online(con(), days)
+
+
+@router.get("/achievements", response_class=HTMLResponse, include_in_schema=False)
+def achievements_page(request: Request):
+    return page(request, "achievements.html", rows=steam.achievements(con()), fetched=get_meta(con(), "steam_ach_fetched"))
+
+
+@router.get("/api/steam/achievements")
+def api_steam_achievements():
+    return steam.achievements(con())
+
+
+@router.get("/api/steam/heatmap")
+def api_steam_heatmap():
+    return steam.heatmap(con())
 
 
 @router.get("/api/steam/build")

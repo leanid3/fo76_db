@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Достижения — FO76 DB{% endblock %}
+{% block main %}
+<h1>Достижения Steam</h1>
+<p class="muted small">Редкость — процент игроков Steam, получивших достижение (общая статистика, ключ Steam не нужен).
+  Обновляется раз в сутки командой <code>fo76db steam</code> и в <code>watch</code>{% if fetched %}; последний раз {{ fetched[:16].replace('T', ' ') }}{% endif %}.</p>
+{% if rows %}
+<div class="toolbar"><input type="search" id="q" placeholder="Название или описание"><span class="counter"></span></div>
+<div class="card" style="overflow-x:auto">
+<table class="list" id="ach">
+  <thead><tr><th>Достижение</th><th>Условие</th><th style="min-width:160px">Получили</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-text="{{ (r.title ~ ' ' ~ (r.descr or ''))|lower }}">
+      <td><b>{{ r.title }}</b></td>
+      <td class="small">{{ r.descr }}</td>
+      <td><div style="background:var(--line);border-radius:3px;height:6px;margin-bottom:2px"><div style="background:var(--accent);height:6px;border-radius:3px;width:{{ r.percent }}%"></div></div>
+        <span class="small">{{ '%.1f'|format(r.percent) }}%{% if r.percent < 5 %} <span class="tag">редкое</span>{% endif %}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<div class="card">Данных ещё нет: <code>python -m fo76db steam</code> (или кнопка «Steam» на главной).</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+const q = document.getElementById("q");
+if (q) {
+  const rows = [...document.querySelectorAll("#ach tbody tr")], cnt = document.querySelector(".counter");
+  const apply = () => {
+    const t = q.value.trim().toLowerCase(); let n = 0;
+    for (const r of rows) { const ok = !t || r.dataset.text.includes(t); r.hidden = !ok; n += ok; }
+    cnt.textContent = n + " из " + rows.length;
+  };
+  q.oninput = apply; apply();
+}
+</script>
+{% endblock %}

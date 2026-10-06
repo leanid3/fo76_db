@@ -77,6 +77,7 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `saved_searches` | Сохранённые поиски: страница, имя, строка запроса |
 | `events` | События. `source`: NULL — вручную, `falloutbuilds`, `wiki` (сезоны), `dailyops`. `ext_key` — стабильный ключ автособытия, `data` — JSON (распродажа и место Минервы, номер сезона, параметры Daily Ops). Время — местное, `ГГГГ-ММ-ДДTЧЧ:ММ` |
 | `steam_news` | Новости игры из Steam: `gid`, `title`, `date` (местное время), `url`, `patch` = 1 для Update Notes |
+| `steam_achievements` | Достижения Steam: `sort` (позиция по убыванию процента), `api_name` (`ACHIEVEMENT_N`, NULL — не сопоставилось), `title`, `descr`, `percent`. Перезаписывается раз в сутки |
 | `online_samples` | Замеры онлайна Steam: `ts`, `players`. Копятся только при работающем `watch` (раз в 15 мин) или после `fo76db steam` |
 | `minerva_plans` | Схемы распродаж Минервы: номер, `name_en`, `formid` (NULL — не нашлось в каталоге). Перезаписывается при обновлении |
 | `daily_tasks`, `daily_done` | Чек-лист ежедневок: пункты (`reset` = `daily`/`weekly`, `per_char`) и отметки по персонажам за `period` (дата начала игрового дня или недели). Отметки старше 30 дней удаляются |
@@ -133,6 +134,8 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `POST /api/events/refresh` | Обновить календарь, Минерву, сезоны и списки Daily Ops: `{calendar, minerva_plans, seasons, errors}` |
 | `GET /api/steam/news?limit&all` | Заметки к патчам из Steam (`all=true` — все новости игры) |
 | `GET /api/steam/online?days` | Онлайн Steam: `{now, now_ts, peak24h, collected_since, points: [[ts, players]]}` |
+| `GET /api/steam/achievements` | Достижения Steam с редкостью (`percent`) |
+| `GET /api/steam/heatmap` | Средний онлайн по дням недели (0 — пн) и часам: `{days, ready, need, cells[7][24], best[]}`; `ready` — набралось ≥ 7 дней замеров |
 | `GET /api/steam/build` | Сборка игры из локального `appmanifest` (`buildid`, `size`, `updated`, `library`) или `null` |
 | `POST /api/steam/refresh` | Обновить новости, замерить онлайн: `{total, new_patches, online, build, errors}` |
 | `GET /api/today?character_id` | Сводка: сбросы дня и недели, сезон, идущие и ближайшие события, Минерва (+ не изучено у персонажа), Daily Ops, списки Daily Ops |

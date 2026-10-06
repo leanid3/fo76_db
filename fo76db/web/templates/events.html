@@ -71,6 +71,12 @@
   <p class="muted small" style="margin:6px 0 0">Только игроки Steam (без Xbox и Bethesda.net). Steam не хранит историю: точки копит <code>watch</code> раз в 15 минут, график начинается с первого запуска. Полосы сверху — события из календаря.</p>
 </div>
 
+<h2>Когда играют</h2>
+<div class="card">
+  <div id="heat" class="muted">Загрузка…</div>
+  <p class="muted small" style="margin:6px 0 0">Средний онлайн Steam по дням недели и часам (ваше местное время) из собственных замеров; нужна неделя данных.</p>
+</div>
+
 <h2>Все события</h2>
 <div class="toolbar" id="filters">
   <select id="f-kind"><option value="">Все типы</option>{% for k, v in EVENT_KINDS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
@@ -308,9 +314,24 @@ async function loadOnline() {
   box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="min-width:560px;width:100%;height:auto" role="img" aria-label="Онлайн Fallout 76 в Steam">${g}${bars}` +
     `<polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.6"/></svg>`;
 }
+const WD = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];
+async function loadHeat() {
+  const h = await api("/api/steam/heatmap"), box = document.getElementById("heat");
+  if (!h.ready) { box.textContent = `Накоплено дней замеров: ${h.days} из ${h.need}. Карта появится, когда данных хватит (замеры идут, пока работает watch).`; return; }
+  const vals = h.cells.flat().filter(v => v != null), lo = Math.min(...vals), hi = Math.max(...vals);
+  const a = v => v == null ? 0 : 0.12 + 0.88 * (hi === lo ? 1 : (v - lo) / (hi - lo));
+  let t = '<table style="border-collapse:separate;border-spacing:2px;font-size:11px"><tr><td></td>' +
+    Array.from({ length: 24 }, (_, i) => `<td class="muted" style="text-align:center">${i % 3 ? "" : i}</td>`).join("") + "</tr>";
+  h.cells.forEach((row, w) => {
+    t += `<tr><td class="muted">${WD[w]}</td>` + row.map((v, i) =>
+      `<td title="${WD[w]} ${i}:00 — ${v == null ? "нет данных" : v.toLocaleString("ru") + " игроков"}" style="width:26px;height:20px;border-radius:3px;background:rgba(79,209,139,${a(v).toFixed(2)})"></td>`).join("") + "</tr>";
+  });
+  const best = h.best.map(b => `${WD[b.weekday]} ${b.hour}:00 (${b.players.toLocaleString("ru")})`).join(", ");
+  box.innerHTML = `<div style="overflow-x:auto">${t}</table></div><div class="small" style="margin-top:6px">Самые людные часы: <b>${best}</b>. Тише всего — тёмные клетки: для Daily Ops и ивентов лучше время с высоким онлайном.</div>`;
+}
 document.getElementById("online-days").onchange = loadOnline;
 setInterval(loadOnline, 15 * 60 * 1000);
 
-loadToday(); loadDaily(); loadAll(); loadOnline();
+loadToday(); loadDaily(); loadAll(); loadOnline(); loadHeat();
 </script>
 {% endblock %}

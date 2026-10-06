@@ -275,6 +275,13 @@ CREATE TABLE IF NOT EXISTS steam_news (
     patch     INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS steam_news_date ON steam_news(date);
+CREATE TABLE IF NOT EXISTS steam_achievements (
+    sort     INTEGER PRIMARY KEY,      -- позиция в выдаче Steam (по убыванию процента)
+    api_name TEXT,                     -- ACHIEVEMENT_N; NULL — сопоставить с API не удалось
+    title    TEXT NOT NULL,
+    descr    TEXT,
+    percent  REAL NOT NULL             -- процент игроков, получивших достижение
+);
 CREATE TABLE IF NOT EXISTS online_samples (
     ts      TEXT PRIMARY KEY,          -- местное время ГГГГ-ММ-ДДTЧЧ:ММ:СС
     players INTEGER NOT NULL
