@@ -7,7 +7,7 @@ import json
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from ... import actions, iomconfig
+from ... import actions, chainplan, config, iomconfig
 from ..common import _need_local, con, page
 
 router = APIRouter()
@@ -54,7 +54,50 @@ def actions_page(request: Request):
 def api_actions():
     c = con()
     rows = list(c.execute("SELECT * FROM actions ORDER BY ord, id"))
-    return {"items": [_out(r) for r in rows], "conflicts": actions.key_conflicts(rows)}
+    return {"items": [_out(r) for r in rows], "conflicts": actions.key_conflicts(rows),
+            "fork": chainplan.fork_on(c), "marks": chainplan.get_marks(c)}
+
+
+@router.put("/api/actions/settings")
+def api_action_settings(fork: bool | None = Body(None), marks: dict | None = Body(None)):
+    """Форк мода установлен (новые поля в конфиге) и цвета/подписи меток."""
+    c = con()
+    if fork is not None:
+        chainplan.set_fork(c, fork)
+    try:
+        if marks is not None:
+            chainplan.set_marks(c, marks)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"fork": chainplan.fork_on(c), "marks": chainplan.get_marks(c)}
+
+
+def _plan_path():
+    return config.game_data() / chainplan.PLAN_FILE
+
+
+@router.get("/api/actions/plan/preview")
+def api_plan_preview():
+    """План цепочки для форка (Data/inventOmaticPlan.json): что будет записано, без записи."""
+    text = chainplan.plan_text(con())
+    p = _plan_path()
+    old = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+    diff = list(difflib.unified_diff(old, text.splitlines(), "было", "станет", n=1, lineterm=""))
+    plan = json.loads(text)
+    return {"path": str(p), "exists": p.exists(), "characters": len(plan["characters"]), "effects": len(plan["effects"]),
+            "diff": diff[:400], "changed": bool(diff)}
+
+
+@router.post("/api/actions/plan/apply")
+def api_plan_apply(request: Request, confirm: bool = Body(False, embed=True)):
+    """Записать план в Data рядом с конфигом (бэкап прежнего, inode сохраняется). Только по явной кнопке."""
+    _need_local(request)
+    if not confirm:
+        raise HTTPException(400, "Запись в папку игры требует подтверждения")
+    try:
+        return iomconfig.save_aux(chainplan.PLAN_FILE, chainplan.plan_text(con()), config.game_data())
+    except (OSError, iomconfig.IomError) as e:
+        raise HTTPException(500, str(e))
 
 
 @router.post("/api/actions")

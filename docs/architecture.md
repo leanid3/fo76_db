@@ -28,6 +28,7 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `fo76db/obtain.py` | «Как получить»: предки в графе LVLI (`ancestors`), категории по EditorID (`RULES`, `classify`, `sources`), места в мире (`world`), сводка `how_to_get` |
 | `fo76db/autotags.py` | Автотеги: редкость, сезон добавления, откуда, состояние. `rebuild()` пересчитывает `item_auto_tags`, `ensure()` — если изменились каталог/история/события; `describe`/`ordered` — подписи и цвета |
 | `fo76db/legendary.py` | Легендарные эффекты по звёздам: `slots()` разбирает строку эффектов, `names()` — описание → название EN/RU, `catalog()` — подсказки по звёздам |
+| `fo76db/legscrap.py` | Разбор легендарок: `Chain` (выученные моды, назначенный персонаж по `profiles.priority`), `item_advice()`, `protected_reason()`, `build_rules()`/`plan_config()` (правила LegeScrap по персонажам), наполнение защиты: `import_unique()` (вики), `seed_godrolls()`, `suggest_from_inventory()` |
 | `fo76db/rolls.py` | Нужные роллы: `matcher()` (шаблон звезды), `grade()` (оценка по хотелкам), `graded_inventory()`, `save()`, уведомления — `baseline()` и `new_matches()` |
 | `fo76db/plantransfer.py` | Схемы в инвентаре: `moves()` — изучить / передать (кому) / продать, `learners()` — персонажи с данными, кроме складов |
 | `fo76db/events.py` | События на сегодня: `refresh()` из сети, сбросы дня и недели (`day_bounds`, `week_bounds`, `period`), Daily Ops, чек-лист, сводка `today()`, русские названия событий |
@@ -71,6 +72,10 @@ Python 3.14, FastAPI + Jinja2, SQLite (WAL), на фронте Tabulator 6.3.1 (
 | `known_recipes` | Изученные схемы: персонаж, FormID, `source` = `auto` или `manual` |
 | `known_legendary_mods` | Легендарные моды по персонажам |
 | `profiles`, `account_labels` | Подписи и цвета персонажей и аккаунтов; `profiles.mule` = 1 — персонаж-склад |
+| `actions` | Действия персонажа (`fo76db/actions.py`): `name`, `account`/`character` (NULL — все), `type` (`scrap`, `transfer`, `vend`/`display`/`freeze`, `sell`, `buy`, `loot`; форк: `consume`, `drop`, `lock`, `chain-*`), `filter` (JSON поверх `raw`), `hotkey`, `ord`, `after_id`, `test_run`, `enabled`, `raw` (исходное правило), `src_hash` (хэш правила в конфиге игры), `source`, `last_result`, `last_run`. Маршруты — `web/routes/actions.py` (`/api/actions*`, предпросмотр и запись через `iomconfig`) |
+| (meta) | `fork_enabled` — форк мода установлен; `mark_config` — JSON цветов и подписей меток (`chainplan.get_marks`) |
+| `protected_items` | Защита от разбора: `kind` (`unique`/`godroll`), `name_en`/`name_ru`, `formid` (уникальный; в каталоге часто нет, тогда ищется по названию), `scope`, шаблоны `s1`–`s4` (годролл), `source` (`wiki`/`guide`/`inventory`/`manual`) |
+| `profiles.priority` | Приоритет персонажа (0 — высший, по умолчанию 100) для цепочки выученных модов |
 | `leg_wants` | Нужные роллы: название, `scope` (`any`/`weapon`/`armor`), шаблоны звёзд `s1`–`s4` (NULL — любой), `notify` |
 | `leg_want_seen` | Уже показанные совпадения хотелки: `want_id`, ключ `character_id\|name\|stars\|legendary`. Пересоздаётся при правке хотелки |
 | `tags`, `item_tags` | Теги и их привязка к ключу предмета `name\|stars\|legendary` |

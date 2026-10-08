@@ -294,14 +294,25 @@ class LegendaryNames:
         return out
 
 
+def _accounts_beside(path: Path) -> dict[str, str]:
+    """{имя персонажа: аккаунт} из itemsmod.ini рядом с LegendaryMods.ini (в самом файле аккаунта нет, а имя «main» бывает у нескольких)."""
+    try:
+        inv = json.loads((path.parent / "itemsmod.ini").read_text(encoding="utf-8", errors="replace")).get("characterInventories") or {}
+    except (OSError, ValueError):
+        return {}
+    return {n: a for n, v in inv.items() if (a := ((v or {}).get("AccountInfoData") or {}).get("name"))}
+
+
 def import_legendary_mods(con: sqlite3.Connection, path: Path, log=print) -> None:
-    """LegendaryMods.ini (Improved Workbench): {"characterInventories": {<персонаж>: {"legendaryMods": [...]}}}."""
+    """LegendaryMods.ini (Improved Workbench): {"characterInventories": {<персонаж>: {"legendaryMods": [...]}}}.
+    Аккаунт персонажа берётся из itemsmod.ini в той же папке."""
     data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
     taken = dt.datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
     chars = data.get("characterInventories") or {}
     names = LegendaryNames(con)
+    accounts = _accounts_beside(path)
     for char_name, inv in chars.items():
-        cid = character_id(con, None, char_name)
+        cid = character_id(con, accounts.get(char_name), char_name)
         mods = inv.get("legendaryMods") or []
         # Персонаж может быть в нескольких файлах (общий Data/ и выгрузки контейнеров): старый файл не затирает новые данные
         have = con.execute("SELECT max(taken_at) FROM known_legendary_mods WHERE character_id = ?", (cid,)).fetchone()[0]

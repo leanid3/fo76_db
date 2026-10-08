@@ -6,6 +6,24 @@
 «Импорт» добавляет правила из конфига игры, «Предпросмотр» показывает diff, «Записать» меняет конфиг (бэкап и сохранение inode — как в «IOM»).
 Правила без пометки в таблице (ручные) запись не трогает. Типы с пометкой <b>форк</b> (<span class="mono">{{ FORK_ONLY|join(", ") }}</span>) оригинальный мод
 не исполняет — они хранятся в таблице и в конфиг пока не пишутся.</p>
+<div class="card" id="forkbox">
+  <h2 style="margin-top:0">Форк мода и метки</h2>
+  <label class="chk"><input type="checkbox" id="fork"> Установлен форк мода (fo76db fork): в конфиг пишутся эффекты по звёздам, защита годролов/уникальных, цепочка и метки</label>
+  <table class="list" id="marks">
+    <tr><th>Метка</th><th>Вкл</th><th>Цвет</th><th>Подпись</th></tr>
+    <tr data-k="godroll"><td>Годролл (жёлтый, <code>[GOLD]</code> и подпись у эффектов)</td><td><input type="checkbox" class="me"></td><td><input type="color" class="mc"></td><td><input class="ml" maxlength="20"></td></tr>
+    <tr data-k="unique"><td>Уникальный (зелёный)</td><td><input type="checkbox" class="me"></td><td><input type="color" class="mc"></td><td><input class="ml" maxlength="20"></td></tr>
+    <tr data-k="give"><td>Нужен другому персонажу (красный, в скобках — аккаунт)</td><td><input type="checkbox" class="me"></td><td><input type="color" class="mc"></td><td><input class="ml" maxlength="20" placeholder="например, отдать"></td></tr>
+  </table>
+  <div class="toolbar">
+    <label class="chk"><input type="checkbox" id="mall"> все метки включены</label>
+    <button id="msave">Сохранить настройки</button>
+    <button id="plan" title="План цепочки для мода: кому достаётся каждый эффект (Data/inventOmaticPlan.json)">План цепочки…</button>
+  </div>
+  <pre id="planout" class="small" hidden style="max-height:260px;overflow:auto"></pre>
+  <button id="planapply" class="primary" hidden>Записать план в Data</button>
+  <p class="muted small">Настройки попадают в конфиг при «Записать в конфиг игры» (блок <code>markConfig</code>, поля <code>godrolls</code>/<code>uniqueNames</code> в защите, <code>modFork</code>).</p>
+</div>
 <div class="toolbar" id="filters">
   <select id="ftype"><option value="">Все типы</option>{% for t in TYPES %}<option>{{ t }}</option>{% endfor %}</select>
   <select id="fch"><option value="">Все персонажи</option></select>
@@ -35,6 +53,36 @@ let sha = null;
 const res = await api("/api/actions");
 const showConf = c => { $("conf").hidden = !c.length; $("conf").textContent = "Клавиша у разных типов: " + c.join("; ") + " (допустимо в разных меню)"; };
 showConf(res.conflicts);
+
+const hex = n => "#" + (+n).toString(16).padStart(6, "0");
+function fillSettings(r) {
+  $("fork").checked = r.fork; $("mall").checked = r.marks.enabled;
+  for (const tr of document.querySelectorAll("#marks tr[data-k]")) {
+    const m = r.marks[tr.dataset.k];
+    tr.querySelector(".me").checked = m.enabled; tr.querySelector(".mc").value = hex(m.color); tr.querySelector(".ml").value = m.label;
+  }
+}
+fillSettings(res);
+$("msave").onclick = async () => {
+  const marks = { enabled: $("mall").checked };
+  for (const tr of document.querySelectorAll("#marks tr[data-k]"))
+    marks[tr.dataset.k] = { enabled: tr.querySelector(".me").checked, color: tr.querySelector(".mc").value, label: tr.querySelector(".ml").value };
+  try { fillSettings(await post("/api/actions/settings", { fork: $("fork").checked, marks }, "PUT")); toast("Сохранено"); }
+  catch (e) { toast(e.message, "err"); }
+};
+$("plan").onclick = e => busy(e.target, async () => {
+  try {
+    const r = await api("/api/actions/plan/preview");
+    $("planout").hidden = false;
+    $("planout").textContent = `${r.path}\nперсонажей: ${r.characters}, эффектов: ${r.effects}\n\n` + (r.diff.length ? r.diff.join("\n") : "Изменений нет");
+    $("planapply").hidden = !r.changed;
+  } catch (e) { toast(e.message, "err"); }
+});
+$("planapply").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Записать план цепочки в папку игры? Прежний файл будет сохранён в бэкап.", { ok: "Записать" })) return;
+  try { const r = await post("/api/actions/plan/apply", { confirm: true }); toast("Записано" + (r.backup ? ": бэкап " + r.backup : "")); $("planapply").hidden = true; }
+  catch (e) { toast(e.message, "err"); }
+});
 
 const yn = { formatter: "tickCross", editor: "tickCross", hozAlign: "center", width: 80 };
 const table = new Tabulator("#table", tableOpts("actions", {

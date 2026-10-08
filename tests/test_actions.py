@@ -81,3 +81,58 @@ def test_api_crud_order_and_page(client):
     assert client.post("/api/actions/bulk", json={"ids": [a, b], "values": {"test_run": False}}).status_code == 200
     assert client.delete(f"/api/actions/{a}").status_code == 200
     assert client.get("/actions").status_code == 200
+
+
+def _chain_db(tmp_path):
+    c = _con(tmp_path)
+    for cid, name, prio in ((1, "a", 0), (2, "b", 5)):
+        c.execute("INSERT INTO characters(id, account, name) VALUES (?, 'acc', ?)", (cid, name))
+        c.execute("INSERT INTO profiles(character_id, priority) VALUES (?, ?) ON CONFLICT(character_id) DO UPDATE SET priority = ?", (cid, prio, prio))
+        for nm, st, ln in (("Aegis", 4, int(cid == 1)), ("Bloodied", 1, 1)):
+            c.execute("INSERT INTO known_legendary_mods(character_id, name, stars, learned) VALUES (?, ?, ?, ?)", (cid, nm, st, ln))
+    c.commit()
+    return c
+
+
+def test_plan_designates_highest_priority_unlearned(tmp_path):
+    from fo76db import chainplan
+    c = _chain_db(tmp_path)
+    plan = chainplan.build_plan(c)
+    eff = {(e["names"][0], e["stars"]): e["to"] for e in plan["effects"]}
+    assert eff[("Aegis", 4)] == "acc/b" and eff[("Bloodied", 1)] is None
+    assert [x["key"] for x in plan["characters"]] == ["acc/a", "acc/b"]
+
+
+def test_godrolls_expand_to_names_and_marks_validate(tmp_path):
+    from fo76db import chainplan, legscrap
+    c = _chain_db(tmp_path)
+    legscrap.add_godroll(c, "Test", "weapon", ["bloodied", "", ""])
+    g = chainplan.godrolls(c)[0]
+    assert g["scope"] == "weapon" and g["slots"][0] == ["Bloodied"] and g["slots"][1] == []
+    assert chainplan.set_marks(c, {"godroll": {"color": "#00ff00", "label": "TOP"}})["godroll"]["color"] == 0x00FF00
+    import pytest
+    with pytest.raises(ValueError):
+        chainplan.set_marks(c, {"unique": {"color": "zz"}})
+
+
+def test_chain_actions_need_fork_and_write_fields(tmp_path):
+    from fo76db import chainplan
+    c = _chain_db(tmp_path)
+    c.execute("INSERT INTO actions(name, type, hotkey) VALUES ('цепочка', 'chain-scrap', 'G')")
+    c.commit()
+    cfg = {"scrapConfig": {"configs": []}, "transferConfig": [], "protectionConfig": {"scrapProtection": {"enabled": True}, "transferProtection": {"enabled": True}}}
+    assert actions.build_config(c, copy.deepcopy(cfg))["written"] == 0
+    chainplan.set_fork(c, True)
+    res = actions.build_config(c, copy.deepcopy(cfg))
+    rule = res["data"]["scrapConfig"]["configs"][0]
+    assert rule["mode"] == "chain" and rule["testRun"] is True and res["data"]["modFork"]["version"] == 1
+    assert res["data"]["markConfig"]["godroll"]["label"] == "GOLD"
+    assert "uniqueNames" in res["data"]["protectionConfig"]["scrapProtection"]
+
+
+def test_api_settings_and_plan_preview(client):
+    r = client.put("/api/actions/settings", json={"fork": True, "marks": {"give": {"label": "ОТДАТЬ"}}})
+    assert r.status_code == 200 and r.json()["marks"]["give"]["label"] == "ОТДАТЬ"
+    assert client.put("/api/actions/settings", json={"marks": {"give": {"color": "zz"}}}).status_code == 400
+    assert client.get("/api/actions/plan/preview").status_code == 200
+    client.put("/api/actions/settings", json={"fork": False, "marks": {"give": {"label": ""}}})

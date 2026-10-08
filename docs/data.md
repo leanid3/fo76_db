@@ -14,6 +14,7 @@
 | Календарь событий, Минерва (расписание и схемы) | [falloutbuilds.com](https://www.falloutbuilds.com/fo76/events/) — HTML-страницы `/fo76/events/` и `/fo76/minerva/` |
 | Сезоны, списки Daily Ops | [fallout.wiki](https://fallout.wiki/wiki/Fallout_76_Seasons): `Fallout_76_Seasons`, `Daily_Ops/Variables` |
 | Где лежит в мире | `tabular.*_LOC.csv` fo76-dumps (LVLI, WEAP, ARMO, MISC, FLOR) |
+| Уникальные именные предметы (защита от разбора) | Категории `Fallout 76 unique weapons` / `unique armor and clothing` на fallout.fandom.com (кнопка «Уникальные с вики») плюс таблица Unique Item Crafting из [официальных заметок The Slasher](https://fallout.bethesda.net/en-US/news/fallout-76-the-slasher-release-notes) (добавлена вручную, `source = manual`) |
 | «Как получить» (текст) | Страница предмета на [fallout.fandom.com](https://fallout.fandom.com), запасной — [fallout.wiki](https://fallout.wiki); разделы Locations / Vendors / Obtaining. Русская — [fallout.fandom.com/ru](https://fallout.fandom.com/ru): «Описание», «Местонахождение» |
 
 Внешние сервисы (Steam, falloutbuilds.com, Fallout Wiki, NukaCrypt, GitHub) можно выключить в «Настройки → Разделы и сервисы» (`data/features.json`): источник тогда не опрашивается, прежние данные остаются.
@@ -105,6 +106,22 @@
 - Название эффекта — по описанию из `known_legendary_mods` (LegendaryMods.ini) с учётом звезды; хвост «Currently …» и значки `§ ½ ¹`
   отбрасываются, регистр не важен. Русское название — `items.name_ru` легендарного мода. Так определяется ~95% звёзд;
   остальные (сдвинутые порядки, мусорные значения вида `-2.14748e+09% Weapon Speed`) ищутся только по тексту описания.
+
+## Защита и разбор легендарок (`fo76db/legscrap.py`)
+
+- Выученные моды — `known_legendary_mods` (LegendaryMods.ini). Участвуют персонажи с данными, не отмеченные складом. Назначенный для эффекта — первый по `profiles.priority` среди не выучивших; при равенстве — по id персонажа.
+- Уникальные: категории `Fallout 76 unique weapons` и `Fallout 76 unique armor and clothing` на fallout.fandom.com (MediaWiki API). Сопоставление с инвентарём — по formid или по названию без регистра и знаков (имена в инвентаре могут быть переименованы мододом, но содержат исходное название).
+- Годролл: предмет минимум с 3★, у которого каждая из звёзд 1–3 входит в «хорошие эффекты» своего типа (оружие/броня) и звезды; 4★ в оценку не входит (важна только для изучения мода), два хороших эффекта — обычный предмет. «Хорошие» эффекты — строки `protected_items` (`kind = godroll`, `s1`–`s3`, варианты через `|`). Единого авторитетного списка нет: стартовый набор (`GOOD` в коде) собран по обсуждениям игроков и избранным легендаркам владельца базы; кнопка «Эффекты из избранного» предлагает недостающие.
+
+## Действия (`fo76db/actions.py`)
+
+- Правила конфига игры (`scrapConfig`, `transferConfig`, `campAssignConfig`, `npcSellConfig`, `buyConfig`, `lootConfig`) импортируются в `actions` целиком (`raw`); идентификатор правила в конфиге — хэш sha1 содержимого. Правила, записанные приложением, содержат поле `fo76db` (id строки).
+- Версия форка — `modFork.version` в корне конфига; 0/нет — оригинальный мод.
+
+## План цепочки (`fo76db/chainplan.py`)
+
+- `inventOmaticPlan.json` (рядом с `LegendaryMods.ini`): `characters[{key = аккаунт/персонаж, priority}]` и `effects[{names (EN и локальные), stars, to}]`, где `to` — назначенный: невыучивший с наименьшим приоритетом (как `legscrap.Chain.designated`), `null` — выучено всеми. Решение по предмету принимает мод.
+- Годролы для мода: шаблоны `s1`–`s3` таблицы `protected_items` раскрываются в точные названия известных эффектов этой звезды; пустой слот — любой эффект.
 
 ## Нужные роллы (`fo76db/rolls.py`)
 

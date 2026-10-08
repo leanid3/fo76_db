@@ -189,6 +189,25 @@ def save(data, expected_sha1: str, path=None, backup_root=None) -> dict:
     return {"ok": True, "changed": True, "backup": str(backup), "sha1": _sha1(p.read_bytes()), "links": p.stat().st_nlink}
 
 
+def save_aux(name: str, text: str, directory=None, backup_root=None) -> dict:
+    """Запись вспомогательного файла мода рядом с конфигом (inventOmaticPlan.json): бэкап прежнего, запись поверх (inode сохраняется)."""
+    p0, root = _paths(None, backup_root)
+    p = Path(directory or p0.parent) / name
+    if p.exists():
+        raw = p.read_bytes()
+        if raw == text.encode():
+            return {"ok": True, "changed": False, "path": str(p)}
+        d = root / f"_backup_{dt.datetime.now():%Y%m%d}"
+        d.mkdir(parents=True, exist_ok=True)
+        stem, _, ext = name.rpartition(".")
+        out = d / f"{stem}.{dt.datetime.now():%H%M%S}.{ext}"
+        out.write_bytes(raw)
+        _write_in_place(p, text, p.stat().st_nlink, raw)
+        return {"ok": True, "changed": True, "path": str(p), "backup": str(out)}
+    p.write_text(text, encoding="utf-8")
+    return {"ok": True, "changed": True, "path": str(p), "created": True}
+
+
 def backups(path=None, backup_root=None) -> list[Path]:
     _, root = _paths(path, backup_root)
     return sorted(root.glob(f"_backup_*/{BACKUP_PREFIX}*.json"), key=lambda x: x.stat().st_mtime, reverse=True)

@@ -21,7 +21,13 @@ SECTIONS = {
     "buy": ("buyConfig", False),
     "loot": ("lootConfig", False),
 }
-FORK_ONLY = ("consume", "drop", "lock", "chain-scrap", "chain-give", "chain-take")  # нужны правки форка мода
+# цепочка легендарок: тип → (секция, mode, заготовка правила); исполняет только форк мода (utils/Plan.as)
+CHAIN = {
+    "chain-scrap": ("scrapConfig", "chain", {"types": ["WEAPON", "ARMOR"], "matchMode": "ALL", "onlyLegendaries": True, "excluded": []}),
+    "chain-give": ("transferConfig", "chain-give", {"types": ["WEAPON", "ARMOR"], "matchMode": "ALL", "itemNames": ["*"], "direction": "TO_CONTAINER"}),
+    "chain-take": ("transferConfig", "chain-take", {"types": ["WEAPON", "ARMOR"], "matchMode": "ALL", "itemNames": ["*"], "direction": "FROM_CONTAINER"}),
+}
+FORK_ONLY = ("consume", "drop", "lock", *CHAIN)  # нужны правки форка мода
 TYPES = tuple(SECTIONS) + FORK_ONLY
 # поля правила, которыми управляет таблица (остальное остаётся из raw/filter)
 OWN = ("name", "hotkey", "testRun", "enabled", "checkCharacterName", "characterName", "checkAccountName", "accountName", MARK)
@@ -29,6 +35,12 @@ OWN = ("name", "hotkey", "testRun", "enabled", "checkCharacterName", "characterN
 
 def rule_hash(rule: dict) -> str:
     return hashlib.sha1(json.dumps(rule, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:16]
+
+
+def is_fork(c: sqlite3.Connection, data: dict) -> bool:
+    """Форк мода: в конфиге уже стоит modFork или включено в настройках страницы «Действия»."""
+    from . import chainplan
+    return fork_version(data) >= 1 or chainplan.fork_on(c)
 
 
 def fork_version(data: dict) -> int:
@@ -149,12 +161,17 @@ def build_config(c: sqlite3.Connection, data: dict) -> dict:
     в порядке выполнения. Остальные (ручные) правила остаются. Действия, которым нужен форк мода, пропускаются."""
     new = copy.deepcopy(data)
     rows = ordered(c)
-    fork = fork_version(data)
+    fork = is_fork(c, data)
     hashes = {r["src_hash"] for r in rows if r["src_hash"]}
     warnings: list[str] = []
     skipped: list[dict] = []
     per: dict[str, list[dict]] = {}
     for a in rows:
+        if a["type"] in CHAIN and fork:
+            section, mode, base = CHAIN[a["type"]]
+            rule = {**copy.deepcopy(base), **to_rule(a), "mode": mode}
+            per.setdefault(section, []).append(rule)
+            continue
         if a["type"] in FORK_ONLY or a["type"] not in SECTIONS:
             skipped.append({"id": a["id"], "name": a["name"], "reason": "нужен форк мода (действие " + a["type"] + ")"})
             continue
@@ -178,5 +195,8 @@ def build_config(c: sqlite3.Connection, data: dict) -> dict:
         pos = min(pos, len(keep))
         items[:] = keep[:pos] + mine + keep[pos:]
         written += len(mine)
+    if fork:
+        from . import chainplan
+        warnings += chainplan.apply_fork(c, new)
     warnings += ["Клавиша занята разными типами действий — " + k for k in key_conflicts(rows)]
     return {"data": new, "written": written, "skipped": skipped, "warnings": warnings}

@@ -268,6 +268,20 @@ CREATE TABLE IF NOT EXISTS leg_want_seen (
     PRIMARY KEY (want_id, key)
 ) WITHOUT ROWID;
 
+-- Защищённые от разбора предметы (fo76db/legscrap.py): уникальные именные и годролы
+CREATE TABLE IF NOT EXISTS protected_items (
+    id      INTEGER PRIMARY KEY,
+    kind    TEXT NOT NULL,                    -- unique | godroll
+    name_en TEXT,                             -- unique: название предмета; godroll: вид оружия/брони (для подписи)
+    name_ru TEXT,
+    formid  INTEGER,                          -- unique: formid базового предмета, если найден
+    scope   TEXT NOT NULL DEFAULT 'any',      -- any | weapon | armor (для godroll)
+    s1 TEXT, s2 TEXT, s3 TEXT, s4 TEXT,       -- godroll: шаблон эффекта звезды (синтаксис rolls.matcher); NULL — любой
+    note    TEXT,
+    source  TEXT,                             -- wiki | guide | inventory | manual
+    created TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS wishlist (
     formid INTEGER PRIMARY KEY,
     note   TEXT,
@@ -355,6 +369,7 @@ MIGRATIONS = (
     ("wiki_obtain", "ru_html", "TEXT"),
     ("wiki_obtain", "ru_checked", "INTEGER"),  # 1 — русскую страницу уже искали (старые записи без неё перечитываются)
     ("profiles", "mule", "INTEGER NOT NULL DEFAULT 0"),  # 1 — персонаж-склад: схемы ему не предлагаются
+    ("profiles", "priority", "INTEGER NOT NULL DEFAULT 100"),  # 0 — высший: ему первому отдаются невыученные легендарные моды
 )
 
 
@@ -372,6 +387,12 @@ def _migrate(con: sqlite3.Connection) -> None:
         con.execute("UPDATE inv_items SET weight = json_extract(raw, '$.weightInStash')"
                     " WHERE container = 'stash' AND json_extract(raw, '$.weightInStash') IS NOT NULL")
         set_meta(con, "fix_stash_weight", "1")
+        con.commit()
+    # Приоритет по умолчанию: основной персонаж leanid3/leanid2 — высший
+    if not get_meta(con, "seed_priority_leanid2"):
+        con.execute("INSERT INTO profiles(character_id, priority) SELECT id, 0 FROM characters WHERE account = 'leanid3' AND name = 'leanid2'"
+                    " ON CONFLICT(character_id) DO UPDATE SET priority = 0")
+        set_meta(con, "seed_priority_leanid2", "1")
         con.commit()
     if not con.execute("SELECT 1 FROM daily_tasks LIMIT 1").fetchone() and not get_meta(con, "daily_tasks_seeded"):
         con.executemany("INSERT INTO daily_tasks(title, reset, per_char, sort) VALUES (?, ?, ?, ?)", DEFAULT_DAILY_TASKS)
