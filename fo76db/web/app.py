@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .. import __version__, config, maintenance
 from .common import HERE, _eq, _local, templates
-from .routes import events, inventory, items, plans, settings
+from .routes import actions, events, inventory, items, plans, settings
 
 API_DESCRIPTION = """Локальный API утилиты FO76 DB: каталог предметов, инвентарь, роллы, события, настройки.
 
@@ -204,5 +204,5 @@ def healthz():
         return JSONResponse({"ok": False, "error": type(e).__name__}, status_code=503)
     return {"ok": True, "version": h["version"], "catalog_release": h["catalog_release"]}
 
-for _m in (items, inventory, plans, events, settings):  # порядок — как раньше в одном файле
+for _m in (items, inventory, plans, actions, events, settings):  # порядок — как раньше в одном файле
     app.include_router(_m.router)

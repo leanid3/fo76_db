@@ -67,3 +67,17 @@ def test_fork_only_skipped_and_testrun_explicit(tmp_path):
     assert res["written"] == 1
     new = next(r for r in res["data"]["scrapConfig"]["configs"] if r["name"] == "s")
     assert new["testRun"] is True
+
+
+def test_api_crud_order_and_page(client):
+    r = client.post("/api/actions", json={"name": "A", "type": "scrap", "hotkey": "g", "filter": {"excluded": ["x"]}})
+    b = client.post("/api/actions", json={"name": "B", "type": "consume"}).json()["id"]
+    a = r.json()["id"]
+    assert client.post("/api/actions", json={"type": "nope"}).status_code == 400
+    assert client.post("/api/actions/order", json={"ids": [b, a]}).status_code == 200
+    items = client.get("/api/actions").json()["items"]
+    assert [i["name"] for i in items if i["id"] in (a, b)] == ["B", "A"]
+    assert client.patch(f"/api/actions/{a}", json={"enabled": False, "filter": "{bad"}).status_code == 400
+    assert client.post("/api/actions/bulk", json={"ids": [a, b], "values": {"test_run": False}}).status_code == 200
+    assert client.delete(f"/api/actions/{a}").status_code == 200
+    assert client.get("/actions").status_code == 200

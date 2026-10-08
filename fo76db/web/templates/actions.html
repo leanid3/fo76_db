@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Действия — FO76 DB{% endblock %}
+{% block main %}
+<h1>Действия персонажа</h1>
+<p class="muted small">Одна строка — одно правило мода Invent-O-Matic. Порядок задаётся перетаскиванием (⠿), поля правятся двойным щелчком.
+«Импорт» добавляет правила из конфига игры, «Предпросмотр» показывает diff, «Записать» меняет конфиг (бэкап и сохранение inode — как в «IOM»).
+Правила без пометки в таблице (ручные) запись не трогает. Типы с пометкой <b>форк</b> (<span class="mono">{{ FORK_ONLY|join(", ") }}</span>) оригинальный мод
+не исполняет — они хранятся в таблице и в конфиг пока не пишутся.</p>
+<div class="toolbar" id="filters">
+  <select id="ftype"><option value="">Все типы</option>{% for t in TYPES %}<option>{{ t }}</option>{% endfor %}</select>
+  <select id="fch"><option value="">Все персонажи</option></select>
+  <button id="add">+ Действие</button>
+  <button id="imp" title="Добавить правила из конфига игры, которых ещё нет в таблице">Импорт из конфига</button>
+  <button id="on" title="Включить выбранные">Вкл</button><button id="off">Выкл</button>
+  <button id="test" title="Выбранным поставить testRun">testRun</button><button id="live" title="Выбранным снять testRun">боевой</button>
+  <button id="del">Удалить</button>
+  <button id="prev" class="primary">Предпросмотр</button>
+  <span class="counter" id="count"></span>
+</div>
+<p class="muted small" id="conf" hidden></p>
+<div id="table"></div>
+<div class="card" id="pv" hidden>
+  <h2 style="margin-top:0">Предпросмотр записи</h2>
+  <div id="pvmsg" class="small"></div>
+  <pre id="pvdiff" class="small" style="max-height:340px;overflow:auto"></pre>
+  <button id="apply" class="primary">Записать в конфиг игры</button>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(async () => {
+const FORK = {{ FORK_ONLY|tojson }}, TYPES = {{ TYPES|tojson }};
+const $ = id => document.getElementById(id);
+let sha = null;
+const res = await api("/api/actions");
+const showConf = c => { $("conf").hidden = !c.length; $("conf").textContent = "Клавиша у разных типов: " + c.join("; ") + " (допустимо в разных меню)"; };
+showConf(res.conflicts);
+
+const yn = { formatter: "tickCross", editor: "tickCross", hozAlign: "center", width: 80 };
+const table = new Tabulator("#table", tableOpts("actions", {
+  data: res.items, height: "calc(100vh - 260px)", layout: "fitColumns", movableRows: true, selectableRows: true, index: "id",
+  columns: [
+    { rowHandle: true, formatter: "handle", width: 30, headerSort: false },
+    { formatter: "rowSelection", titleFormatter: "rowSelection", width: 40, hozAlign: "center", headerSort: false },
+    { title: "Вкл", field: "enabled", ...yn, formatter: c => c.getValue() ? "✔" : "✘" },
+    { title: "Название", field: "name", editor: "input", minWidth: 160 },
+    { title: "Тип", field: "type", editor: "list", editorParams: { values: TYPES }, width: 120,
+      formatter: c => esc(c.getValue()) + (FORK.includes(c.getValue()) ? ' <span class="tag" title="нужен форк мода">форк</span>' : "") },
+    { title: "Аккаунт", field: "account", editor: "input", width: 110 },
+    { title: "Персонаж", field: "character", editor: "input", width: 120 },
+    { title: "Клавиша", field: "hotkey", editor: "input", width: 90 },
+    { title: "testRun", field: "test_run", ...yn, formatter: c => c.getValue() ? "тест" : "боевой" },
+    { title: "Отбор (JSON)", field: "filter", editor: "textarea", minWidth: 200, formatter: c => `<code>${esc(c.getValue())}</code>` },
+    { title: "Последний результат", field: "last_result", minWidth: 180, editable: false,
+      formatter: c => { const r = c.getValue(); return r ? esc(`в очереди ${r.queued ?? "?"}, выполнено ${r.done ?? "?"}, пропущено ${(r.skipped || []).length}`) : ""; } },
+  ],
+}));
+table.on("cellEdited", async cell => {
+  const f = cell.getField(), d = cell.getData();
+  try { await post("/api/actions/" + d.id, { [f]: cell.getValue() }, "PATCH"); }
+  catch (e) { toast(e.message, "err"); cell.restoreOldValue(); }
+  if (f === "hotkey" || f === "enabled" || f === "type") showConf((await api("/api/actions")).conflicts);
+});
+table.on("rowMoved", async () => {
+  try { await post("/api/actions/order", { ids: table.getRows().map(r => r.getData().id) }); } catch (e) { toast(e.message, "err"); }
+});
+const sel = () => table.getSelectedData().map(d => d.id);
+async function reload() { table.replaceData((await api("/api/actions")).items); }
+function fillChars() {
+  const names = [...new Set(table.getData().map(d => d.character).filter(Boolean))].sort();
+  $("fch").innerHTML = '<option value="">Все персонажи</option>' + names.map(n => `<option>${esc(n)}</option>`).join("");
+}
+table.on("tableBuilt", fillChars);
+function applyFilter() {
+  const t = $("ftype").value, ch = $("fch").value;
+  table.setFilter(d => (!t || d.type === t) && (!ch || d.character === ch));
+}
+table.on("dataFiltered", (f, rows) => $("count").textContent = rows.length + " действий");
+$("ftype").oninput = $("fch").oninput = applyFilter;
+
+$("add").onclick = async () => { try { await post("/api/actions", {}); await reload(); fillChars(); } catch (e) { toast(e.message, "err"); } };
+$("imp").onclick = e => busy(e.target, async () => {
+  try { const r = await post("/api/actions/import", {}); toast(`Добавлено ${r.added}, уже есть ${r.skipped}`); await reload(); fillChars(); }
+  catch (e) { toast(e.message, "err"); }
+});
+const bulk = (id, values) => $(id).onclick = async () => {
+  const ids = sel(); if (!ids.length) return toast("Выберите строки", "err");
+  try { await post("/api/actions/bulk", { ids, values }); await reload(); } catch (e) { toast(e.message, "err"); }
+};
+bulk("on", { enabled: true }); bulk("off", { enabled: false }); bulk("test", { test_run: true }); bulk("live", { test_run: false });
+$("del").onclick = async () => {
+  const ids = sel(); if (!ids.length) return toast("Выберите строки", "err");
+  if (!await uiConfirm(`Удалить действий: ${ids.length}?`, { danger: true, ok: "Удалить" })) return;
+  for (const id of ids) await post("/api/actions/" + id, undefined, "DELETE");
+  await reload();
+};
+$("prev").onclick = e => busy(e.target, async () => {
+  try {
+    const r = await api("/api/actions/preview"); sha = r.sha1;
+    $("pv").hidden = false;
+    const bad = r.issues.filter(i => i.level === "error");
+    $("pvmsg").innerHTML = `Файл: <code>${esc(r.path)}</code> · записать правил: ${r.written}`
+      + r.skipped.map(s => `<div class="muted">пропущено «${esc(s.name)}»: ${esc(s.reason)}</div>`).join("")
+      + r.warnings.map(w => `<div>⚠ ${esc(w)}</div>`).join("")
+      + bad.map(i => `<div class="err">✘ ${esc(i.path)}: ${esc(i.message)}</div>`).join("");
+    $("pvdiff").textContent = r.diff.length ? r.diff.join("\n") : "Изменений нет";
+    $("apply").disabled = !!bad.length || !r.diff.length;
+  } catch (e) { toast(e.message, "err"); }
+});
+$("apply").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Записать правила в конфиг игры? Будет сделан бэкап.", { ok: "Записать" })) return;
+  try { const r = await post("/api/actions/apply", { sha1: sha, confirm: true }); toast("Записано" + (r.backup ? ": бэкап " + r.backup : "")); $("pv").hidden = true; }
+  catch (e) { toast(e.message, "err"); }
+});
+})();
+</script>
+{% endblock %}
