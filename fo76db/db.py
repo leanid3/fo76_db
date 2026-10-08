@@ -295,6 +295,26 @@ CREATE TABLE IF NOT EXISTS online_samples (
     ts      TEXT PRIMARY KEY,          -- местное время ГГГГ-ММ-ДДTЧЧ:ММ:СС
     players INTEGER NOT NULL
 ) WITHOUT ROWID;
+-- Таблица действий персонажа (fo76db/actions.py): строка = одно правило мода IOM
+CREATE TABLE IF NOT EXISTS actions (
+    id          INTEGER PRIMARY KEY,
+    name        TEXT NOT NULL,
+    account     TEXT,                          -- NULL — не привязано к аккаунту
+    character   TEXT,                          -- NULL — «все персонажи»
+    type        TEXT NOT NULL,                 -- scrap | transfer | vend | display | freeze | sell | buy | loot | consume | drop | lock | chain-*
+    filter      TEXT NOT NULL DEFAULT '{}',    -- JSON: поля отбора, накладываются на raw
+    hotkey      TEXT,
+    ord         INTEGER NOT NULL DEFAULT 0,    -- порядок выполнения
+    after_id    INTEGER,                       -- зависимость «после»
+    test_run    INTEGER NOT NULL DEFAULT 1,
+    enabled     INTEGER NOT NULL DEFAULT 1,
+    raw         TEXT NOT NULL DEFAULT '{}',    -- JSON исходного правила (неизвестные поля не теряются)
+    src_hash    TEXT,                          -- хэш исходного правила в конфиге игры (для замены при записи)
+    source      TEXT NOT NULL DEFAULT 'manual',-- manual | import | chain
+    last_result TEXT,                          -- JSON отчёта мода: queued, done, skipped, ...
+    last_run    TEXT,
+    created     TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
