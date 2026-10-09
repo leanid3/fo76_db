@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Лаунчер — FO76 DB{% endblock %}
+{% block main %}
+<h1>Лаунчер</h1>
+<p class="muted small">Состояние механики (приложение, форк мода, конфиг, план) и действия. Сборка форка кладёт архив в <code>data/launcher</code>, игру не трогает;
+«Установить» и «Откатить» заменяют <code>InventOmaticStash-UO.ba2</code> в Data (прежний — в бэкап <code>_backup_&lt;дата&gt;/Data/</code>). После замены перезапустите игру.
+То же в терминале: <code>fo76db launcher status|build|install --yes|rollback --yes|units|start|stop|export|import</code>.</p>
+<div class="card"><h2 style="margin-top:0">Диагностика</h2><div id="checks" class="small">…</div>
+  <div class="toolbar"><button id="refresh">Обновить</button></div></div>
+<div class="card"><h2 style="margin-top:0">Версии мода</h2><div id="vers" class="small">…</div>
+  <p class="muted small">Мод обновили на Nexus Mods (или пакет в Data заменён чистым) — нажмите «Развернуть»: новый чистый архив станет оригиналом в бэкапе. Если у него другая версия, чем та, под которую написан форк,
+  сборка остановится с подсказкой: правки форка нужно перенести на новую версию (<code>mod-fork/BUILD.md</code>); принудительно — «Собрать (force)».
+  Самого мода здесь нет: Nexus Mods скачивается вручную, лаунчер подхватывает файл из Data.</p></div>
+<div class="card"><h2 style="margin-top:0">Развернуть всё</h2>
+  <p class="muted small">Пути к игре определяются автоматически (Настройки → Пути игры). Шаги: собрать форк → поставить архив мода в Data → включить форк →
+  записать правила в конфиг IOM → записать план цепочки. Всё с бэкапами; после — перезапустить игру.</p>
+  <div class="toolbar"><button id="deploy" class="primary">Развернуть одной кнопкой</button></div></div>
+<div class="card"><h2 style="margin-top:0">Форк мода</h2>
+  <div class="toolbar">
+    <button id="build">Собрать</button>
+    <button id="buildf" title="Собрать, даже если версия мода не совпадает с версией форка">Собрать (force)</button>
+    <button id="install" class="primary">Установить в игру</button>
+    <button id="rollback" class="danger">Откатить к оригиналу</button>
+  </div><pre id="out" class="small" hidden></pre></div>
+<div class="card"><h2 style="margin-top:0">Службы</h2>
+  <div class="toolbar">
+    <button id="units">Установить юниты systemd</button>
+    <button data-svc="start">Запустить serve + watch</button><button data-svc="restart">Перезапустить</button><button data-svc="stop">Остановить</button>
+  </div></div>
+<script>
+const $ = id => document.getElementById(id);
+const mark = { true: "✔", false: "✘", null: "!" };
+async function refresh() {
+  const r = await api("/api/launcher/status");
+  const v = r.status.versions || {}, fv = x => x ? `v${x.version}` + (x.fork != null ? ` + форк ${x.fork}` : "") : "—";
+  $("vers").innerHTML = `В Data: <b>${fv(v.installed)}</b> · оригинал в бэкапе: <b>${fv(v.original)}</b> · исходники форка: <b>${fv(v.source)}</b>`
+    + (v.compatible === false ? ' <span class="err">— версии не совпадают</span>' : "");
+  $("checks").innerHTML = r.checks.map(c => `<div class="${c.ok === false ? "err" : ""}">${mark[c.ok]} <b>${esc(c.name)}</b>: ${esc(c.detail)}`
+    + (c.hint && c.ok !== true ? `<div class="muted">→ ${esc(c.hint)}</div>` : "") + "</div>").join("");
+}
+function show(o) { $("out").hidden = false; $("out").textContent = JSON.stringify(o, null, 1); }
+async function run(btn, fn) { try { show(await fn()); await refresh(); } catch (e) { toast(e.message, "err"); } }
+$("refresh").onclick = e => busy(e.target, refresh);
+$("build").onclick = e => busy(e.target, () => run(e.target, () => post("/api/launcher/build", {})));
+$("buildf").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Версии не совпадают: сборка заменит скрипты мода скриптами форка и может затереть изменения новой версии. Продолжить?", { danger: true, ok: "Собрать" })) return;
+  await run(e.target, () => post("/api/launcher/build", { force: true }));
+});
+$("install").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Заменить InventOmaticStash-UO.ba2 в Data игры? Прежний архив уйдёт в бэкап.", { ok: "Установить" })) return;
+  await run(e.target, () => post("/api/launcher/install", { confirm: true }));
+});
+$("rollback").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Вернуть оригинальный архив мода из бэкапа?", { danger: true, ok: "Откатить" })) return;
+  await run(e.target, () => post("/api/launcher/rollback", { confirm: true }));
+});
+$("deploy").onclick = e => busy(e.target, async () => {
+  if (!await uiConfirm("Собрать форк, заменить архив мода в Data и записать конфиг IOM и план цепочки? Прежние файлы уйдут в бэкап.", { ok: "Развернуть" })) return;
+  await run(e.target, () => post("/api/launcher/deploy", { confirm: true }));
+});
+$("units").onclick = e => busy(e.target, () => run(e.target, () => post("/api/launcher/units", {})));
+document.querySelectorAll("[data-svc]").forEach(b => b.onclick = e => busy(e.target, () => run(e.target, () => post("/api/launcher/service/" + b.dataset.svc, {}))));
+refresh();
+</script>
+{% endblock %}

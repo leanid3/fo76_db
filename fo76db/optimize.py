@@ -9,7 +9,7 @@ import json
 import sqlite3
 from collections import defaultdict
 
-from . import legendary, plantransfer, rolls
+from . import legendary, legscrap, plantransfer, rolls
 from .importers.inventory import current_items_sql
 
 STASH_LIMIT = 1200
@@ -21,6 +21,9 @@ ADVICE = {
     "ammobox": "в ящик для патронов (Fallout 1st)",
     "learned_plan": "уже изучена: продать или передать",
     "unlearned_plan": "изучить",
+    "leg_give": "нужные моды: передать персонажу",
+    "leg_self": "нужные моды: разобрать самому, чтобы выучить",
+    "leg_learned": "все моды выучены: разобрать или на скрип",
     "scrip": "легендарка не подходит под нужные роллы: на скрип",
     "junk_scrap": "разобрать на компоненты",
     "duplicate": "дубликат: оставить один",
@@ -58,8 +61,9 @@ def analyze(c: sqlite3.Connection, chars: list[dict], *, scrapbox: bool = False,
     # схемы: изучить / передать / продать — общая логика со страницей «Схемы»
     plan_move = {(m["character_id"], m["container"], m["formid"]): m for m in plantransfer.moves(c, labels)}
     want_list = rolls.compile_wants(rolls.wants(c))
-    leg_names = legendary.names(c) if want_list else {}
     comp_w = _component_weights(c)
+    chain = legscrap.Chain(c)
+    leg_names = legendary.names(c)
 
     rows = []
     for r in c.execute(current_items_sql()):
@@ -73,6 +77,9 @@ def analyze(c: sqlite3.Connection, chars: list[dict], *, scrapbox: bool = False,
             "unit": r["weight"] or 0.0, "weight": round((r["weight"] or 0.0) * r["count"], 2),
             "learned": bool(r["learned"]), "raw": raw,
         })
+        if r["stars"]:  # защищённые (уникальные, годролы) не получают советов на разбор, скрип и дубликаты
+            slots, _ = legendary.slots(r["legendary"], r["stars"], leg_names)
+            rows[-1]["protected"] = legscrap.protected_reason(chain, formid=r["formid"], name=r["name"], category=r["category"], slots=slots)
 
     advice = []
 
@@ -87,7 +94,7 @@ def analyze(c: sqlite3.Connection, chars: list[dict], *, scrapbox: bool = False,
             "key": f"{row['name']}|{row['stars']}|{row['legendary'] or ''}",
         })
 
-    candidates = [r for r in rows if not r["equipped"] and r["weight"] > 0]
+    candidates = [r for r in rows if not r["equipped"] and r["weight"] > 0 and not r.get("protected")]
 
     for r in candidates:
         raw = r["raw"]
@@ -103,10 +110,19 @@ def analyze(c: sqlite3.Connection, chars: list[dict], *, scrapbox: bool = False,
             else:
                 add(r, "learned_plan", r["weight"],
                     ("передать: " + ", ".join(m["need_labels"])) if m["need"] else "изучена у всех персонажей")
-        elif r["stars"] and want_list:
+        elif r["stars"]:
             slots, _ = legendary.slots(r["legendary"], r["stars"], leg_names)
-            g = rolls.grade(slots, r["category"], want_list)
-            if g and g["grade"] == "scrip":
+            g = rolls.grade(slots, r["category"], want_list) if want_list else None
+            leg = legscrap.item_advice(chain, r["character_id"], chain.item_effects(r["legendary"], r["stars"]))
+            if g and g["grade"] != "scrip":
+                pass  # подходит под хотелку — оставить
+            elif leg and leg["type"] == "give":
+                add(r, "leg_give", r["weight"], f"→ {chain.label(leg['target'])}: " + legscrap.need_text(chain, leg))
+            elif leg and leg["type"] == "self":
+                add(r, "leg_self", r["weight"], "ещё не выучено: " + legscrap.need_text(chain, leg))
+            elif leg and leg["type"] == "learned":
+                add(r, "leg_learned", r["weight"], f"{r['stars']}★, все эффекты выучены всеми персонажами")
+            elif g:
                 add(r, "scrip", r["weight"], f"{r['stars']}★, ни одна звезда не совпала с хотелками")
         elif r["category"] == "junk" and raw.get("scrapAllowed"):
             per = _scrap_weight(c, r["id"], comp_w)
@@ -121,7 +137,7 @@ def analyze(c: sqlite3.Connection, chars: list[dict], *, scrapbox: bool = False,
     # Дубликаты снаряжения по всем персонажам: оставляем одну штуку (надетую или самую лёгкую по месту хранения)
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for r in rows:
-        if r["category"] in GEAR or r["stars"]:
+        if (r["category"] in GEAR or r["stars"]) and not r.get("protected"):
             groups[(r["name"], r["stars"], r["legendary"])].append(r)
     for g in groups.values():
         if sum(r["count"] for r in g) < 2:

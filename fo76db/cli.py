@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
+from pathlib import Path
 
 from . import db
 
@@ -162,7 +164,51 @@ def cmd_doctor(args) -> None:
 def cmd_notify(args) -> None:
     from . import notify
 
-    notify.check(db.connect())
+    if args.test:
+        res = notify.test()
+        print("\n".join(f"{k}: {'ок' if v is None else 'ошибка — ' + v}" for k, v in res.items()) or "Ни один канал не настроен (ntfy_topic, telegram_token + telegram_chat_id)")
+    elif args.telegram_chat:
+        print("\n".join(notify.telegram_chats()) or "Бот не получал сообщений: напишите ему что-нибудь и повторите")
+    else:
+        notify.check(db.connect())
+
+
+def cmd_launcher(args) -> None:
+    from . import launcher as L
+
+    try:
+        a = args.what
+        if a == "status":
+            rows = L.diagnose()
+            for r in rows:
+                print(f"{ {True: '✔', False: '✘', None: '!'}[r['ok']] } {r['name']}: {r['detail']}" + (f"\n    → {r['hint']}" if r["hint"] and r["ok"] is not True else ""))
+        elif a == "build":
+            print(json.dumps(L.mod_build(force=args.force), ensure_ascii=False, indent=1))
+        elif a == "install":
+            if not args.yes:
+                sys.exit("Замена архива мода в Data: повторите с --yes (прежний уйдёт в бэкап)")
+            print(json.dumps(L.mod_install(), ensure_ascii=False, indent=1))
+        elif a == "rollback":
+            if not args.yes:
+                sys.exit("Откат архива мода в Data: повторите с --yes")
+            print(json.dumps(L.mod_rollback(), ensure_ascii=False, indent=1))
+        elif a == "deploy":
+            if not args.yes:
+                sys.exit("Развёртывание пишет в папку игры (архив мода, конфиг IOM, план): повторите с --yes")
+            r = L.deploy(True, args.force)
+            print(json.dumps(r, ensure_ascii=False, indent=1))
+            if not r["ok"]:
+                sys.exit(1)
+        elif a == "units":
+            print("\n".join(L.units_install()))
+        elif a in ("start", "stop", "restart"):
+            print(L.service(a))
+        elif a == "export":
+            print(json.dumps(L.export_bundle(Path(args.path)), ensure_ascii=False))
+        elif a == "import":
+            print(json.dumps(L.import_bundle(Path(args.path)), ensure_ascii=False))
+    except L.LauncherError as e:
+        sys.exit(f"Ошибка: {e}")
 
 
 def _utf8_output() -> None:
@@ -230,7 +276,18 @@ def main(argv=None) -> None:
     c.set_defaults(func=cmd_doctor)
 
     c = sub.add_parser("notify", help="разовая проверка уведомлений (новый патч, события, вишлист)")
+    c.add_argument("--test", action="store_true", help="отправить тестовое сообщение на телефон (ntfy, Telegram)")
+    c.add_argument("--telegram-chat", action="store_true", help="показать chat id чатов, писавших боту (для telegram_chat_id)")
     c.set_defaults(func=cmd_notify)
+
+    c = sub.add_parser("launcher", help="лаунчер: статус и диагностика, сборка/установка форка мода, юниты systemd, перенос данных")
+    c.add_argument("what", choices=["status", "deploy", "build", "install", "rollback", "units", "start", "stop", "restart", "export", "import"],
+                   help="status — диагностика; deploy --yes — всё сразу (сборка, архив в Data, конфиг IOM, план); build/install/rollback — форк мода (install/rollback пишут в Data игры, нужен --yes); "
+                        "units — поставить юниты serve/watch; export/import ПУТЬ — перенос базы и настроек")
+    c.add_argument("path", nargs="?", help="файл архива для export/import")
+    c.add_argument("--force", action="store_true", help="собирать, даже если версия установленного мода не совпадает с версией, под которую написан форк")
+    c.add_argument("--yes", action="store_true", help="подтвердить запись в папку игры")
+    c.set_defaults(func=cmd_launcher)
 
     if argv is None:
         argv = sys.argv[1:]

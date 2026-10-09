@@ -378,7 +378,7 @@ def new_unprotected(c: sqlite3.Connection, covered: set[str]) -> list[dict]:
     не сообщали. Первый запуск только запоминает текущие. Ключ — персонаж|название|эффекты."""
     from .importers.inventory import current_items_sql
     chain = Chain(c)
-    cur, rows = {}, []
+    cur = {}
     for r in c.execute(f"SELECT * FROM ({current_items_sql()}) WHERE stars > 0"):
         raw = json.loads(r["raw"] or "{}")
         if raw.get("favorite") or raw.get("isTransferLocked") or any(n in r["name"].lower() for n in covered):

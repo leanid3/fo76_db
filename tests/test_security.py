@@ -41,6 +41,10 @@ def test_remote_cannot_write_paths_even_with_token(remote, monkeypatch):
     assert remote.post("/api/iom/restore", json={"sha1": "x"}).status_code == 403
     assert remote.delete("/api/log").status_code == 403
     assert remote.post("/api/actions/apply", json={"sha1": "x", "confirm": True}).status_code == 403
+    for u in ("install", "rollback"):
+        assert remote.post(f"/api/launcher/{u}", json={"confirm": True}).status_code == 403
+    assert remote.post("/api/launcher/build").status_code == 403
+    assert remote.post("/api/launcher/service/stop").status_code == 403
 
 
 def test_csrf_cross_site_blocked(client):

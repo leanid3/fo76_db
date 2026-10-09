@@ -7,8 +7,9 @@ import json
 import shutil
 import sqlite3
 import subprocess
+import urllib.request
 
-from . import features, rolls, steam, updatecheck
+from . import features, iomconfig, legscrap, rolls, steam, updatecheck
 from .db import connect, get_meta, set_meta
 from .events import title_ru
 from .sources import dumps
@@ -32,6 +33,7 @@ def _store(kind: str, title: str, body: str) -> None:
 def send(title: str, body: str, kind: str = "") -> None:
     log.info("🔔 %s: %s", title, body)
     _store(kind, title, body)
+    _push(title, body)
     if shutil.which("notify-send"):
         subprocess.run(["notify-send", "-a", "FO76 DB", title, body], check=False)
     elif shutil.which("gdbus"):  # Flatpak: notify-send в среде нет, gdbus есть (из GLib)
@@ -42,6 +44,59 @@ def send(title: str, body: str, kind: str = "") -> None:
                         '"FO76 DB"', "0", '""', json.dumps(title, ensure_ascii=False),
                         json.dumps(body, ensure_ascii=False), "[]", "{}", "5000"],
                        check=False, stdout=subprocess.DEVNULL)
+
+
+def _post_json(url: str, payload: dict) -> dict:
+    req = urllib.request.Request(url, data=json.dumps(payload, ensure_ascii=False).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.loads(r.read().decode("utf-8", "replace") or "{}")
+
+
+def _push(title: str, body: str) -> dict[str, str | None]:
+    """Дубль на телефон: ntfy (`ntfy_topic`) и Telegram (`telegram_token` + `telegram_chat_id`). {канал: None | ошибка}.
+    Ошибки только в журнал; токен бота в журнал не попадает (в тексте ошибки urllib нет адреса)."""
+    from . import config
+    cfg = config.load()
+    out: dict[str, str | None] = {}
+    topic = (cfg.get("ntfy_topic") or "").strip()
+    if topic and features.service_on("ntfy"):
+        server = (cfg.get("ntfy_server") or "https://ntfy.sh").rstrip("/")
+        try:
+            _post_json(server, {"topic": topic, "title": title, "message": body, "tags": ["video_game"]})
+            out["ntfy"] = None
+        except Exception as e:
+            out["ntfy"] = str(e)
+            log.warning("ntfy: %s", e)
+    token, chat = (cfg.get("telegram_token") or "").strip(), str(cfg.get("telegram_chat_id") or "").strip()
+    if token and chat and features.service_on("telegram"):
+        try:
+            _post_json(f"https://api.telegram.org/bot{token}/sendMessage", {"chat_id": chat, "text": f"{title}\n{body}"})
+            out["telegram"] = None
+        except Exception as e:
+            out["telegram"] = str(e)
+            log.warning("telegram: %s", e)
+    return out
+
+
+def telegram_chats() -> list[str]:
+    """Чаты, писавшие боту (для telegram_chat_id): «id — имя». Сначала напишите боту любое сообщение."""
+    from . import config
+    token = (config.load().get("telegram_token") or "").strip()
+    if not token:
+        raise ValueError("Задайте telegram_token в config.toml")
+    with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/getUpdates", timeout=10) as r:
+        upd = json.loads(r.read().decode()).get("result", [])
+    seen = {}
+    for u in upd:
+        ch = (u.get("message") or u.get("channel_post") or {}).get("chat") or {}
+        if "id" in ch:
+            seen[ch["id"]] = ch.get("username") or ch.get("title") or ch.get("first_name") or ""
+    return [f"{k} — {v}" for k, v in seen.items()]
+
+
+def test() -> dict[str, str | None]:
+    """Тестовое сообщение во все настроенные каналы телефона."""
+    return _push("FO76 DB", "Проверка уведомлений на телефон ✓")
 
 
 def _notify(kind: str, title: str, body: str) -> None:
@@ -158,6 +213,12 @@ def check_rolls(con: sqlite3.Connection) -> int:
         effects = " / ".join(s["en"] or s["text"] for s in m["slots"])
         where = "тайник" if m["container"] == "stash" else "инвентарь"
         _notify("rolls", f"Нужный ролл: {w['name']}", f"{m['name']} — {names.get(m['character_id'], '?')}, {where}\n{effects}")
+    try:
+        covered = legscrap.covered_names(iomconfig.load()["data"])
+    except Exception:  # конфиг IOM недоступен или с комментариями — считаем, что имена не защищены
+        covered = set()
+    for g in legscrap.new_unprotected(con, covered):
+        _notify("godroll", f"{g['reason'].capitalize()} без защиты", f"{g['name']} — {g['character']}: отметьте избранным или заблокируйте")
     return len(found)
 
 

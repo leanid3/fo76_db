@@ -228,16 +228,17 @@ async function save(url, body, btn) {
 async function load() {
   const p = await api("/api/profiles");
   const chars = document.getElementById("chars");
-  chars.innerHTML = row(["<b>Из выгрузки</b>", "<b>Подпись</b>", "<b>Цвет</b>", "<b>Склад</b>", ""]).replace(/td>/g, "th>")
+  chars.innerHTML = row(["<b>Из выгрузки</b>", "<b>Подпись</b>", "<b>Цвет</b>", "<b>Склад</b>", "<b>Приоритет</b>", ""]).replace(/td>/g, "th>")
     + p.characters.map(c => row([`${esc(c.name)} <span class="muted small">${esc(c.account)}</span>`,
       `<input data-k="label" value="${esc(c.name === c.label ? "" : c.label)}" placeholder="${esc(c.name)}">`,
       `<input data-k="color" type="color" value="${esc(c.color || DEFAULT_COLOR)}"> <label class="chk small"><input data-k="nocolor" type="checkbox" ${c.color ? "" : "checked"}> без цвета</label>`,
       `<label class="chk small" title="Персонаж-склад (мул): схемы ему не предлагаются ни на «Схемах», ни в «Весе»"><input data-k="mule" type="checkbox" ${c.mule ? "checked" : ""}> склад</label>`,
+      `<input data-k="priority" type="number" min="0" max="999" value="${c.priority}" style="width:64px" title="0 — высший: ему первому отдаются легендарки с невыученными модами (оптимизатор, правила LegeScrap)">`,
       `<button data-id="${c.id}">Сохранить</button>`])).join("");
   for (const b of chars.querySelectorAll("button")) b.onclick = () => {
     const tr = b.closest("tr"), v = k => tr.querySelector(`[data-k=${k}]`);
     save("/api/profiles", { character_id: +b.dataset.id, label: v("label").value, color: v("nocolor").checked ? null : v("color").value,
-      mule: v("mule").checked }, b);
+      mule: v("mule").checked, priority: +v("priority").value || 0 }, b);
   };
   const acc = document.getElementById("accounts");
   acc.innerHTML = p.accounts.map(a => row([esc(a.account),

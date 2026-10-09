@@ -6,7 +6,9 @@ import json
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
-from ... import legendary, optimize, plantransfer, rolls
+from ... import chainplan, iomconfig, legendary, legscrap, optimize, plantransfer, rolls
+from ...importers.inventory import current_items_sql
+from ...db import set_meta
 from ..common import CHARS_SQL, con, page
 
 router = APIRouter()
@@ -176,3 +178,112 @@ def api_roll_delete(want_id: int):
     c.execute("DELETE FROM leg_wants WHERE id = ?", (want_id,))
     c.commit()
     return {"ok": True}
+
+
+# ---------- разбор легендарок и защита ----------
+
+@router.get("/protected", response_class=HTMLResponse, include_in_schema=False)
+def protected_page(request: Request):
+    return page(request, "protected.html", SCOPES=rolls.SCOPES, FORK=chainplan.fork_on(con()))
+
+
+@router.get("/api/protected")
+def api_protected():
+    """Список защиты, предметы в инвентаре под защитой и кандидаты из избранного."""
+    c = con()
+    chain = legscrap.Chain(c)
+    items = []
+    for r in c.execute(f"SELECT * FROM ({current_items_sql()}) WHERE stars > 0"):
+        slots, _ = legendary.slots(r["legendary"], r["stars"], chain.lookup)
+        raw = json.loads(r["raw"] or "{}")
+        why = legscrap.protected_reason(chain, formid=r["formid"], name=r["name"], category=r["category"], slots=slots)
+        if why:
+            items.append({"character": r["character"], "container": r["container"], "name": r["name"], "stars": r["stars"],
+                          "legendary": r["legendary"], "reason": why, "count": r["count"],
+                          "marked": bool(raw.get("favorite") or raw.get("isTransferLocked"))})
+    return {"rows": [dict(r) for r in c.execute("SELECT * FROM protected_items ORDER BY kind DESC, name_en COLLATE NOCASE")],
+            "items": items, "suggest": legscrap.suggest_from_inventory(c), "scopes": rolls.SCOPES}
+
+
+@router.post("/api/protected")
+def api_protected_add(data: dict = Body(...)):
+    c = con()
+    try:
+        if data.get("kind") == "unique":
+            name = (data.get("name") or "").strip()
+            if not name:
+                raise ValueError("Нужно название")
+            c.execute("INSERT INTO protected_items(kind, name_en, source) VALUES ('unique', ?, 'manual')", (name,))
+            c.commit()
+            return {"ok": True}
+        return {"id": legscrap.add_godroll(c, data.get("name") or "", data.get("scope") or "any",
+                                           [data.get(f"s{i}") for i in range(1, 4)])}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.delete("/api/protected/{pid}")
+def api_protected_delete(pid: int):
+    c = con()
+    c.execute("DELETE FROM protected_items WHERE id = ?", (pid,))
+    c.commit()
+    return {"ok": True}
+
+
+@router.post("/api/protected/fill")
+def api_protected_fill(what: str = Body(..., embed=True)):
+    """Наполнение: unique — с вики fandom, godroll — стартовые «хорошие» эффекты, inventory — эффекты из избранного."""
+    c = con()
+    if what == "unique":
+        try:
+            return legscrap.import_unique(c)
+        except Exception as e:  # сеть, вики недоступна
+            raise HTTPException(502, f"Вики недоступна: {e}")
+    if what == "godroll":
+        return {"added": legscrap.seed_godrolls(c)}
+    if what == "inventory":
+        n = 0
+        for g in legscrap.suggest_from_inventory(c):
+            legscrap.add_good(c, g["scope"], g["star"], g["effect"])
+            n += 1
+        return {"added": n}
+    raise HTTPException(400, "unique | godroll | inventory")
+
+
+def _no_fork() -> None:
+    """С форком мода правила разбора ведёт таблица «Действия» (chain-scrap); старый LegeScrap дублировал бы их."""
+    if chainplan.fork_on(con()):
+        raise HTTPException(409, "Включён форк мода: правила разбора и передачи ведутся на странице «Действия» (chain-scrap, chain-give, chain-take)")
+
+
+@router.get("/api/legscrap/preview")
+def api_legscrap_preview(keep_manual: bool = False):
+    _no_fork()
+    """Правила LegeScrap по персонажам: что будет записано в конфиг игры (без записи)."""
+    try:
+        cur = iomconfig.load()
+    except iomconfig.IomError as e:
+        raise HTTPException(400, str(e))
+    plan = legscrap.plan_config(con(), cur["data"], keep_manual)
+    if plan.get("error"):
+        raise HTTPException(400, plan["error"])
+    return {"characters": plan["characters"], "replaced": plan["replaced"], "protect_names": plan["protect_names"],
+            "collisions": plan["collisions"], "sha1": cur["sha1"], "path": cur["path"]}
+
+
+@router.post("/api/legscrap/apply")
+def api_legscrap_apply(sha1: str = Body(..., embed=True), keep_manual: bool = Body(False)):
+    """Записать правила в конфиг IOM (бэкап и сохранение inode — в iomconfig.save). Только по явной кнопке."""
+    _no_fork()
+    try:
+        cur = iomconfig.load()
+        plan = legscrap.plan_config(con(), cur["data"], keep_manual)
+        if plan.get("error"):
+            raise HTTPException(400, plan["error"])
+        r = iomconfig.save(plan["data"], sha1)
+        c = con()
+        set_meta(c, "legscrap_names", json.dumps(plan["protect_names"], ensure_ascii=False))
+        c.commit()
+        return r
+    except iomconfig.IomError as e:
+        raise HTTPException(400, str(e))

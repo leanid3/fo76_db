@@ -30,6 +30,8 @@ DEFAULTS = {
     # пишется только с сохранением inode, перед записью — копия в <backup_root>/_backup_<ГГГГММДД>/.
     "iom_config": "",    # пусто — {game_data}/inventOmaticStashConfig.json
     "backup_root": "",   # пусто — <data>/backups
+    # Форк мода Invent-O-Matic Stash (исходники AS3, BUILD.md в нём) для `fo76db launcher mod build`. Пусто — ~/src/Invent-O-Matic-Stash-modificaed
+    "mod_fork_dir": "",
     # Файлы выгрузки Invent-O-Matic Extractor (мод пишет JSON в itemsmod.ini). Допустимы шаблоны glob.
     # {game_data} подставляется из настройки game_data.
     "inventory": [

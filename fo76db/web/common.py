@@ -77,7 +77,7 @@ def con():
 
 # Персонажи с понятными именами и цветами из профилей
 CHARS_SQL = (
-    "SELECT c.id, c.account, c.name, coalesce(p.label, c.name) AS label, p.color, coalesce(p.mule, 0) AS mule,"
+    "SELECT c.id, c.account, c.name, coalesce(p.label, c.name) AS label, p.color, coalesce(p.mule, 0) AS mule, coalesce(p.priority, 100) AS priority,"
     " coalesce(a.label, c.account) AS account_label, a.color AS account_color FROM characters c"
     " LEFT JOIN profiles p ON p.character_id = c.id LEFT JOIN account_labels a ON a.account = c.account"
 )

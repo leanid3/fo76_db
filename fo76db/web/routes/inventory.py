@@ -69,11 +69,12 @@ def api_profiles():
 
 @router.post("/api/profiles")
 def api_profile_save(character_id: int = Body(...), label: str | None = Body(None), color: str | None = Body(None),
-                     mule: bool = Body(False)):
+                     mule: bool = Body(False), priority: int = Body(100)):
     c = con()
-    c.execute("INSERT INTO profiles(character_id, label, color, mule) VALUES (?, ?, ?, ?) ON CONFLICT(character_id)"
-              " DO UPDATE SET label = excluded.label, color = excluded.color, mule = excluded.mule",
-              (character_id, (label or "").strip() or None, _color(color), int(mule)))
+    c.execute("INSERT INTO profiles(character_id, label, color, mule, priority) VALUES (?, ?, ?, ?, ?)"
+              " ON CONFLICT(character_id) DO UPDATE SET label = excluded.label, color = excluded.color, mule = excluded.mule,"
+              " priority = excluded.priority",
+              (character_id, (label or "").strip() or None, _color(color), int(mule), max(0, min(priority, 999))))
     c.commit()
     return {"ok": True}
 

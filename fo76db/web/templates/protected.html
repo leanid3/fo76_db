@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Защита от разбора — FO76 DB{% endblock %}
+{% block main %}
+<h1>Защита от разбора</h1>
+<p class="muted small">Что не разбирать и не сдавать на скрип ни при каких условиях: <b>уникальные</b> именные предметы разработчиков и <b>годролы</b> (предмет минимум с 3★, где каждая из звёзд 1–3 «хорошая»; 4★ не в счёт, два хороших эффекта — обычный предмет; «хорошие» эффекты задаются по типу и звезде, варианты через <code>|</code>). Страница «Вес» не даёт таким предметам советов. Приоритет персонажей для выученных модов задаётся в «Настройки → Персонажи и теги».</p>
+
+{% if FORK %}
+<div class="card"><h2 style="margin-top:0">Правила разбора и передачи</h2>
+  <p class="muted small">Включён форк мода: правила разбора и передачи (в том числе цепочка легендарок по приоритету персонажей) ведутся на странице <a href="/actions">«Действия»</a> —
+  шаблоны <code>chain-scrap</code>, <code>chain-give</code>, <code>chain-take</code>. Здесь остаётся только список защищённых предметов: уникальные и годролы. Запись старых правил LegeScrap отключена, чтобы они не дублировали таблицу.</p></div>
+{% else %}
+<div class="card">
+  <h2 style="margin-top:0">Правила LegeScrap по персонажам</h2>
+  <p class="muted small">Эффект, который не выучил кто-то из персонажей, достаётся персонажу с наивысшим приоритетом из невыучивших; остальные его не разбирают.
+  Для каждого персонажа строится своё правило LegeScrap (та же клавиша, привязка к имени): исключения = эффекты, нужные другому, плюс прежний ручной список.
+  Годролы и уникальные правило разобрать не может (мод не умеет «все три звезды хорошие»): защищайте их в игре избранным или блокировкой — в таблице справа ⚠ отмечены предметы без отметки. Годролы и уникальные дополнительно защищаются по названию: приложение записывает их в <code>scrapProtection.itemNames</code>. Запись в <code>inventOmaticStashConfig.json</code> делается с бэкапом и только по кнопке.</p>
+  <div class="toolbar"><label class="chk"><input type="checkbox" id="lskeep"> оставить прежний ручной список исключений (он защищает любой предмет с «хорошим» эффектом)</label>
+  <button id="lsprev">Показать, что изменится</button></div>
+  <div id="lsout"></div>
+</div>
+{% endif %}
+
+<div class="grid2">
+  <div class="card">
+    <h2 style="margin-top:0">Список защиты</h2>
+    <div class="toolbar">
+      <button id="fill-unique" title="Категории «Fallout 76 unique weapons / armor and clothing» на fallout.fandom.com">Уникальные с вики</button>
+      <button id="fill-godroll" title="Стартовый набор по мнению игроков; поправьте под свой билд">Стартовые «хорошие» эффекты</button>
+      <button id="fill-inventory" title="Эффекты избранных легендарок с 3★ и больше, которых ещё нет в «хороших»">Эффекты из избранного</button>
+    </div>
+    <table class="list" id="rows"></table>
+  </div>
+  <div class="card">
+    <h2 style="margin-top:0">Добавить</h2>
+    <div class="toolbar">
+      <input id="fname" placeholder="Название (уникальный предмет или годролл)" style="flex:1;min-width:200px">
+      <select id="fkind"><option value="godroll">Годролл</option><option value="unique">Уникальный</option></select>
+      <select id="fscope">{% for k, v in SCOPES.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    </div>
+    <div class="toolbar">{% for n in range(1, 4) %}<input id="f{{ n }}" placeholder="{{ '★' * n }} хорошие (A|B)">{% endfor %}</div>
+    <div class="toolbar"><button class="primary" id="fadd">Добавить</button></div>
+    <h2>Сейчас в инвентаре под защитой <span class="counter" id="icount"></span></h2>
+    <p class="muted small">🔒 — в избранном или заблокирован, ⚠ — игра его может разобрать.</p>
+    <table class="list" id="items"></table>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+(async () => {
+const $ = id => document.getElementById(id);
+const row = cells => "<tr>" + cells.map(c => `<td>${c}</td>`).join("") + "</tr>";
+async function load() {
+  const d = await api("/api/protected");
+  $("rows").innerHTML = d.rows.length ? d.rows.map(r => row([
+    r.kind === "unique" ? '<span class="tag">уник.</span>' : '<span class="tag warn">годролл</span>',
+    `<b>${esc(r.name_en || r.name_ru)}</b>${r.kind === "godroll" ? `<br><span class="muted small">${esc(d.scopes[r.scope] || "")}: ${[r.s1, r.s2, r.s3].map((s, i) => `${"★".repeat(i + 1)} ${esc(s || "—")}`).join(" · ")}</span>` : ""}`,
+    `<span class="muted small">${esc(r.source || "")}</span>`,
+    `<button data-id="${r.id}" title="Убрать из защиты">✕</button>`])).join("") : '<tr><td class="muted">Список пуст — наполните кнопками выше.</td></tr>';
+  for (const b of $("rows").querySelectorAll("button")) b.onclick = async () => { await api("/api/protected/" + b.dataset.id, { method: "DELETE" }); load(); };
+  $("icount").textContent = d.items.length;
+  $("items").innerHTML = d.items.map(i => row([esc(i.character), esc(i.name), stars(i.stars), `<span class="muted small">${esc(i.reason)}</span>`, i.marked ? "🔒" : '<span title="Не в избранном и не заблокирован: правило LegeScrap его разберёт">⚠</span>'])).join("");
+}
+for (const w of ["unique", "godroll", "inventory"]) $("fill-" + w).onclick = async e => {
+  e.target.disabled = true;
+  try { const r = await post("/api/protected/fill", { what: w }); toast(`Добавлено: ${r.added}` + (r.with_formid != null ? `, с formid: ${r.with_formid}` : ""), "ok"); load(); }
+  catch (err) { toast(err.message, "err"); } finally { e.target.disabled = false; }
+};
+$("fadd").onclick = async () => {
+  try { await post("/api/protected", { kind: $("fkind").value, name: $("fname").value, scope: $("fscope").value, s1: $("f1").value, s2: $("f2").value, s3: $("f3").value });
+    $("fname").value = ""; for (const n of [1, 2, 3]) $("f" + n).value = ""; load(); }
+  catch (err) { toast(err.message, "err"); }
+};
+if ($("lsprev")) $("lsprev").onclick = async () => {
+  try {
+    const p = await api("/api/legscrap/preview?keep_manual=" + $("lskeep").checked);
+    $("lsout").innerHTML = `<table class="list">${row(["<b>Персонаж</b>", "<b>Приоритет</b>", "<b>Разбирает сам (эффектов)</b>", "<b>Исключений</b>", "<b>Предупреждения</b>"]).replace(/td>/g, "th>")}`
+      + p.characters.map(c => row([esc(c.label), c.priority, c.scrap_effects, `${c.excluded.length} (новых ${c.generated}, прежних ${c.manual})`, esc(c.warnings.join("; ")) || "—"])).join("")
+      + `</table><p class="muted small">Заменятся правила: ${esc(p.replaced.join(", ") || "—")}.
+      <br>Защита по названиям (<code>scrapProtection.itemNames</code>): ${p.protect_names.length} предметов.
+      ${p.collisions.length ? `Названия совпадают и с обычными предметами, те тоже не будут разбираться: ${p.collisions.map(x => `${esc(x.name)} (+${x.others})`).join(", ")}.` : "Совпадений с обычными предметами нет."} Файл: ${esc(p.path)}</p>
+      <button class="primary" id="lsapply">Записать в конфиг игры</button>`;
+    $("lsapply").onclick = async () => {
+      if (!await uiConfirm("Записать правила LegeScrap в конфиг игры? Перед записью будет сделан бэкап.", { ok: "Записать" })) return;
+      try { const r = await post("/api/legscrap/apply", { sha1: p.sha1, keep_manual: $("lskeep").checked }); toast("Записано" + (r.backup ? ", бэкап: " + r.backup : ""), "ok"); }
+      catch (err) { toast(err.message, "err"); }
+    };
+  } catch (err) { toast(err.message, "err"); }
+};
+load();
+})();
+</script>
+{% endblock %}
