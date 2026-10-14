@@ -47,11 +47,23 @@
 ## Установка из исходников
 
 ```sh
-git clone https://github.com/leanid3/fo76_db.git ~/src/fo76db && cd ~/src/fo76db
+git clone --recursive https://github.com/leanid3/fo76_db.git fo76db && cd fo76db
 python3 -m venv .venv
 .venv/bin/pip install -e .            # десктоп-версия: .venv/bin/pip install -e ".[desktop]"
 cp config.toml.example config.toml   # по желанию
 ```
+
+`mod-fork/` — submodule с форком мода Invent-O-Matic Stash (GPL-3, сборка — `mod-fork/BUILD.md`). Уже склонировали без
+`--recursive` — `git submodule update --init`.
+
+### Развёртывание форка мода
+
+1. `yay -S --needed jdk-openjdk ffdec-bin` (Arch; на других системах — JDK 17+ и FFDec).
+2. `.venv/bin/python -m fo76db serve --open`: пути к игре определяются автоматически («Настройки → Пути игры»).
+3. Страница «Лаунчер» → «Развернуть одной кнопкой» (или `fo76db launcher deploy --yes`): сборка форка, архив в Data,
+   конфиг IOM, план цепочки. Затем перезапустить игру.
+
+Оригинальный `InventOmaticStash-UO.ba2` в репозиторий не входит: он берётся из установленного мода (копия — в бэкап).
 
 ## Команды
 

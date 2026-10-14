@@ -29,6 +29,18 @@ def test_import_is_idempotent_and_keeps_unknown_fields(tmp_path):
     assert a["type"] == "scrap" and a["test_run"] == 0 and '"weird"' in a["raw"]
 
 
+def test_import_name_lists(tmp_path):
+    """Мод принимает characterName/accountName массивом: импорт не падает, запись возвращает массив."""
+    c = _con(tmp_path)
+    cfg = {"scrapConfig": {"configs": [{"name": "Multi", "checkCharacterName": True, "characterName": ["a1", "b2"],
+                                        "checkAccountName": True, "accountName": ["acc"]}]}}
+    assert actions.import_rules(c, cfg)["added"] == 1
+    a = c.execute("SELECT * FROM actions WHERE name='Multi'").fetchone()
+    assert a["character"] == "a1, b2" and a["account"] == "acc"
+    rule = actions.to_rule(a)
+    assert rule["characterName"] == ["a1", "b2"] and rule["accountName"] == "acc"
+
+
 def test_build_replaces_imported_and_keeps_manual(tmp_path):
     c = _con(tmp_path)
     cfg = _cfg()

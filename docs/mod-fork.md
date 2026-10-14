@@ -1,6 +1,6 @@
 # Форк Invent-O-Matic Stash под fo76db
 
-Документ для Claude Code в двух репозиториях: **fo76db** (`~/src/fo76db`, приложение) и **форк мода** (`~/src/Invent-O-Matic-Stash-modificaed`, ActionScript 3, лицензия GPL-3). Здесь записано, чего не хватает оригинальному моду для цепочки разбора легендарок по персонажам, и как делится работа.
+Документ для Claude Code в двух репозиториях: **fo76db** (приложение) и **форк мода** (`Invent-O-Matic-Stash-modificaed` рядом с fo76db или `mod-fork/` внутри него, ActionScript 3, лицензия GPL-3). Здесь записано, чего не хватает оригинальному моду для цепочки разбора легендарок по персонажам, и как делится работа.
 
 Версия оригинала: `Version.VERSION = 2.85`, под игру 1.7.26.13. Мод грузится из `Data/InventOmaticStash-UO.ba2` (внутри swf), конфиг — `Data/inventOmaticStashConfig.json`, список легендарных модов — `Data/LegendaryMods.ini`.
 

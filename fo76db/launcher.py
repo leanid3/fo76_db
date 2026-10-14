@@ -36,12 +36,13 @@ def sha1(p: Path) -> str | None:
 
 
 def fork_dir() -> Path:
-    """Исходники форка: `mod_fork_dir`, иначе `mod-fork/` рядом с приложением (так в сборке для развёртывания),
-    иначе ~/src/Invent-O-Matic-Stash-modificaed."""
+    """Исходники форка: `mod_fork_dir`, иначе `mod-fork/` рядом с приложением (submodule),
+    иначе соседний каталог Invent-O-Matic-Stash-modificaed, иначе ~/src/Invent-O-Matic-Stash-modificaed."""
     cfg = config.load().get("mod_fork_dir")
     if cfg:
         return Path(cfg).expanduser()
-    for p in (db.ROOT / "mod-fork", Path("~/src/Invent-O-Matic-Stash-modificaed").expanduser()):
+    name = "Invent-O-Matic-Stash-modificaed"
+    for p in (db.ROOT / "mod-fork", db.ROOT.parent / name, Path("~/src", name).expanduser()):
         if (p / "tools/ba2.py").is_file():
             return p
     return db.ROOT / "mod-fork"

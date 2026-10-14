@@ -65,11 +65,23 @@ def _type_of(section: str, rule: dict) -> str:
     return next(t for t, (sec, _) in SECTIONS.items() if sec == section)
 
 
+def _names(v) -> str | None:
+    """`accountName`/`characterName`: мод принимает строку или массив; в таблице — строка через запятую."""
+    if isinstance(v, list):
+        return ", ".join(str(x) for x in v if x) or None
+    return str(v) if v else None
+
+
+def _names_out(v: str) -> str | list[str]:
+    parts = [x.strip() for x in v.split(",") if x.strip()]
+    return parts if len(parts) > 1 else v.strip()
+
+
 def _row(rule: dict, typ: str) -> dict:
     return {
         "name": str(rule.get("name") or typ), "type": typ, "hotkey": rule.get("hotkey") or None,
-        "account": rule.get("accountName") if rule.get("checkAccountName") else None,
-        "character": rule.get("characterName") if rule.get("checkCharacterName") else None,
+        "account": _names(rule.get("accountName")) if rule.get("checkAccountName") else None,
+        "character": _names(rule.get("characterName")) if rule.get("checkCharacterName") else None,
         "test_run": 1 if rule.get("testRun", True) else 0, "enabled": 1 if rule.get("enabled") else 0,
     }
 
@@ -116,7 +128,7 @@ def to_rule(a: sqlite3.Row | dict) -> dict:
     rule["enabled"] = bool(a["enabled"])
     for flag, key, val in (("checkAccountName", "accountName", a["account"]), ("checkCharacterName", "characterName", a["character"])):
         if val:
-            rule[flag], rule[key] = True, val
+            rule[flag], rule[key] = True, _names_out(val)
         else:
             rule.pop(flag, None)
             rule.pop(key, None)

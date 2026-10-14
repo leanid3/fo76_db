@@ -1,0 +1,3 @@
+[submodule "mod-fork"]
+	path = mod-fork
+	url = https://github.com/leanid3/Invent-O-Matic-Stash-modificaed.git
