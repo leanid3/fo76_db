@@ -1,0 +1,55 @@
+# Автоочистка хранилища Actions: держим KEEP последних артефактов каждого имени
+# и KEEP последних релизов (git-теги остаются). Нужна, чтобы не упираться в квоту.
+name: cleanup
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "Сколько последних версий оставить"
+        default: "5"
+      dry_run:
+        description: "Только показать, что будет удалено"
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: write
+
+concurrency:
+  group: cleanup
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      KEEP: ${{ inputs.keep || '5' }}
+      DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+    steps:
+      - name: Артефакты — оставить KEEP свежих на имя
+        run: |
+          # *.dockerbuild у каждого запуска со своим суффиксом — считаем одним именем
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --paginate \
+            -q '.artifacts[] | select(.expired | not) | "\(.created_at) \(.id) \(.name)"' |
+          sort -r |
+          awk -v k="$KEEP" '{ n = $3; sub(/^.*\.dockerbuild$/, "dockerbuild", n) } ++c[n] > k { print $2, $3 }' |
+          while read -r id name; do
+            [ -n "$DRY_RUN" ] || gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
+            echo "artifact $name ($id) удалён${DRY_RUN:+ [dry-run]}"
+          done
+
+      - name: Релизы — оставить KEEP последних
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate \
+            -q '.[] | select(.draft | not) | "\(.created_at) \(.tag_name)"' |
+          sort -r | tail -n +"$((KEEP + 1))" |
+          while read -r _ tag; do
+            [ -n "$DRY_RUN" ] || gh release delete "$tag" -R "$GITHUB_REPOSITORY" --yes
+            echo "release $tag удалён${DRY_RUN:+ [dry-run]}"
+          done
