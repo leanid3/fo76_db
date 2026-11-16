@@ -1,6 +1,6 @@
 # FO76 DB в контейнере. Данные (база, кэш, config.toml) — в томе /data, папка Data игры — только чтение в /game/Data.
 # Сборка: docker build -t fo76db .     Запуск: docker compose up -d   (см. compose.yaml и docs/packaging.md)
-FROM python:3.14-slim AS build
+FROM python:3.15-slim AS build
 WORKDIR /src
 COPY pyproject.toml requirements.lock README.md LICENSE CREDITS.md ./
 COPY fo76db ./fo76db
@@ -8,7 +8,7 @@ COPY fo76db ./fo76db
 RUN pip wheel --no-cache-dir --wheel-dir /wheels --require-hashes -r requirements.lock \
     && pip wheel --no-cache-dir --no-deps --wheel-dir /wheels .
 
-FROM python:3.14-slim
+FROM python:3.15-slim
 # 7zip — распаковка архивов fo76-dumps (команды catalog и history)
 RUN apt-get update && apt-get install -y --no-install-recommends 7zip \
     && rm -rf /var/lib/apt/lists/*
